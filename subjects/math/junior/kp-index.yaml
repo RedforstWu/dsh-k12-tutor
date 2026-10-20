@@ -1,7 +1,7 @@
 # Every knowledge point of the 初中数学 pack, edition-neutral. kp/<id>.md adds curriculum references and the
 # teaching body for points with full content; the rest are outline entries (catalog only, no worked examples).
 # Textbook placement lives in textbooks/<edition>.yaml. Source of the chapter structure:
-# docs/research/02-junior-math.md §2.3 (人教版 2022 课标修订版 七上 to 九上, 旧版 九下, read from smartedu page images).
+# SOURCES.md（初中数学） (人教版 2022 课标修订版 七上 to 九上, 旧版 九下, read from smartedu page images).
 kps:
   # 七年级上册
   negative-numbers: {name: 正数和负数, grade: 7, domain: 数与代数, aliases: [正数, 负数, 相反意义的量]}

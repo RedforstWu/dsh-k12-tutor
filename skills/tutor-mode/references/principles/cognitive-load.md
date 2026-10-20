@@ -15,4 +15,4 @@ when: 每条回复都要遵守
 
 依据：例题效应、专长逆转和指导渐隐 [R14]；LearnLM 和 study mode 都把"一次一个问题、不要大段输出"列为规则 [P1][G1]。
 
-来源编号见 docs/research/01-tutor-pedagogy.md 第 4 节。
+来源编号见 SOURCES.md（教学法）。

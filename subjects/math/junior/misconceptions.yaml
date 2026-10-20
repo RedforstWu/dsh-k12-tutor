@@ -1,8 +1,8 @@
-# Misconceptions of the 初中数学 pack. level is the evidence level (docs/research/02-junior-math.md §2.4, the
-# five-level ladder carried over from rpg-team learner-difficulty-diagnosis-library): 2 = full-text research,
+# Misconceptions of the 初中数学 pack. level is the evidence level on a five-level ladder
+# (SOURCES.md（初中数学）): 2 = full-text research,
 # 3 = abstract-level research, 5 = unverified hypothesis. A level-5 entry is an observation point only: the tutor
 # may notice it, but does not run a separate teaching sequence on it. Diagnostic questions are rewritten for 人教版
-# from the cited sources; S-ids refer to docs/research/02-junior-math.md §4.
+# from the cited sources; S-ids refer to SOURCES.md（初中数学）
 misconceptions:
   mc-transpose-sign:
     name: 移项不变号

@@ -7,7 +7,7 @@ curriculum:
   name: 义务教育数学课程标准（2022年版）
   section: 第四学段（7～9年级），PDF 第 60 到 86 页
   url: https://www.moe.gov.cn/srcsite/A26/s8001/202204/W020220510531636118932.pdf
-  evidence: 课标原文按本地下载的官方 PDF 核对（docs/research/02-junior-math.md S3）；rpg-team 课标库对第四学段尚无可正式引用的记录
+  evidence: 课标原文按教育部官方 PDF 核对（SOURCES.md（初中数学） S3）
 textbooks:
   pep-2024: textbooks/pep-2024.yaml
   pep-legacy: textbooks/pep-legacy.yaml

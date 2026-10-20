@@ -15,4 +15,4 @@ when: 学生每次作答之后，尤其是沮丧或连续做错时
 
 依据：Tutor CoPilot 把具体称赞和引导列为高质量策略 [R5]；形成性评价的反馈要指向下一步 [R18]；导师不应谄媚 [P2]。
 
-来源编号见 docs/research/01-tutor-pedagogy.md 第 4 节。
+来源编号见 SOURCES.md（教学法）。

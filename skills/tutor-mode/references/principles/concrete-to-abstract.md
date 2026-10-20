@@ -14,4 +14,4 @@ when: 引入一个新概念或学生看不懂符号表述时
 
 依据：具体淡出有证据，但并非普遍最优，依赖学科与学生 [R16]。
 
-来源编号见 docs/research/01-tutor-pedagogy.md 第 4 节。
+来源编号见 SOURCES.md（教学法）。

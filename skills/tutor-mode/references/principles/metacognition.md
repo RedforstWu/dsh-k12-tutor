@@ -16,4 +16,4 @@ when: 做完一道题、一个阶段或一次复习时
 
 依据：EEF 关于计划、监控、评价的建议 [R19]；学生自评偏乐观 [R1]；LearnLM 把"引导学生反思"列入教学行为 [P1]。
 
-来源编号见 docs/research/01-tutor-pedagogy.md 第 4 节。
+来源编号见 SOURCES.md（教学法）。

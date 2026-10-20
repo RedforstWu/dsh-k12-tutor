@@ -2,7 +2,7 @@ edition: pep-legacy
 short: 人教版（旧版）
 name: 义务教育教科书·数学（未按 2022 年版课程标准修订），人民教育出版社
 note: 只收九年级下册：截至 2026-10-20 智慧教育平台上的人教版九下仍是旧版（主编 林群），章号从第二十六章重新编起。新版九下发布后删除本文件。
-source: docs/research/02-junior-math.md §2.3（智慧教育平台目录页图片转录，2026-10-20）
+source: SOURCES.md（初中数学）（智慧教育平台目录页图片转录，2026-10-20）
 volumes:
   - grade: 9
     term: 下
