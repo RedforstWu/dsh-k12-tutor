@@ -1,0 +1,54 @@
+schema: k12-subject-index/1
+# Every subject and stage the tutor may meet. Only `active` stages have a pack; `planned` ones are
+# extension slots: route_task tells the tutor there is no pack and it falls back to the playbooks.
+# To add a pack: create subjects/<subject>/<stage>/ following subjects/README.md, then set status: active.
+subjects:
+  - id: math
+    name: 数学
+    stages:
+      - {id: primary, name: 小学, status: planned}
+      - {id: junior, name: 初中, status: active, pack: math/junior}
+      - {id: senior, name: 高中, status: planned}
+  - id: chinese
+    name: 语文
+    stages:
+      - {id: primary, name: 小学, status: planned}
+      - {id: junior, name: 初中, status: planned}
+      - {id: senior, name: 高中, status: planned}
+  - id: english
+    name: 英语
+    stages:
+      - {id: primary, name: 小学, status: planned}
+      - {id: junior, name: 初中, status: planned}
+      - {id: senior, name: 高中, status: planned}
+  - id: physics
+    name: 物理
+    stages:
+      - {id: junior, name: 初中, status: planned}
+      - {id: senior, name: 高中, status: planned}
+  - id: chemistry
+    name: 化学
+    stages:
+      - {id: junior, name: 初中, status: planned}
+      - {id: senior, name: 高中, status: planned}
+  - id: biology
+    name: 生物学
+    stages:
+      - {id: junior, name: 初中, status: planned}
+      - {id: senior, name: 高中, status: planned}
+  - id: history
+    name: 历史
+    stages:
+      - {id: junior, name: 初中, status: planned}
+      - {id: senior, name: 高中, status: planned}
+  - id: geography
+    name: 地理
+    stages:
+      - {id: junior, name: 初中, status: planned}
+      - {id: senior, name: 高中, status: planned}
+  - id: politics
+    name: 道德与法治 / 思想政治
+    stages:
+      - {id: primary, name: 小学, status: planned}
+      - {id: junior, name: 初中, status: planned}
+      - {id: senior, name: 高中, status: planned}

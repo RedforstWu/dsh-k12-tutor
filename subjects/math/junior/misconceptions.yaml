@@ -1,0 +1,104 @@
+# Misconceptions of the 初中数学 pack. level is the evidence level (docs/research/02-junior-math.md §2.4, the
+# five-level ladder carried over from rpg-team learner-difficulty-diagnosis-library): 2 = full-text research,
+# 3 = abstract-level research, 5 = unverified hypothesis. A level-5 entry is an observation point only: the tutor
+# may notice it, but does not run a separate teaching sequence on it. Diagnostic questions are rewritten for 人教版
+# from the cited sources; S-ids refer to docs/research/02-junior-math.md §4.
+misconceptions:
+  mc-transpose-sign:
+    name: 移项不变号
+    symptom: 把一项移到等号另一边时没变号，如 3x+20=4x-25 写成 3x-4x=-25+20。
+    diagnostic: 小明解 3x+20=4x-25，第一步写成 3x-4x=-25+20。他哪一步错了？用等式的性质说明。
+    remedy: 回到教材七上 5.2 的推导：移项就是对等式两边同时加上或减去同一项（等式性质 1），所以移过去要变号。让学生把自己的第一步写成"两边同时减 4x、减 20"再对照。
+    level: 3
+    sources: [S16 摘要级, S17 摘要级, S6 教材移项定义]
+  mc-minuend-swap:
+    name: 移项时对调被减数和减数
+    symptom: 13n+196=391 写成 13n=196-391，得到负数解。
+    diagnostic: 解 13n+196=391，看是否得到负数解；再问"把 196 移到右边，是 391 减 196 还是 196 减 391"。
+    remedy: 让学生把解代回原方程（冲突法），自己发现左右不相等，再回到两边同减 196。
+    level: 3
+    sources: [S28 MaE33]
+  mc-distribute-sign:
+    name: 去括号时符号只处理第一项
+    symptom: -(5x+1) 写成 -5x+1；3(x-2) 写成 3x-2。
+    diagnostic: 解 2(x-3)-(5x+1)=4，请写出去括号后的式子。
+    remedy: 用乘法分配律逐项相乘，或取一个具体的 x 值代入括号前后两种写法，看结果是否相等。
+    level: 3
+    sources: [S17 摘要级, S28 MaE 第4类]
+  mc-no-check:
+    name: 不检验或检验时算错
+    symptom: 得出解后不代回检验，或代回时只算一边。
+    diagnostic: 把你的解代回原方程，左右两边分别算出来，相等吗？
+    remedy: 每道方程题结束时固定做一次"左边算一遍、右边算一遍"；课标要求检验方程解的合理性。
+    level: 3
+    sources: [S28 MaE52, S3 课标方程与不等式⑧]
+  mc-detached-minus:
+    name: 负号脱离（减号和后面的数分家）
+    symptom: 4+n-2+5 化成 4+n-7；-12-7-7n+4n 化成 -12-7-11n。
+    diagnostic: 化简 237+89-89+67-92+92；再化简 -12-7-7n+4n。
+    remedy: 把每个减号连同后面的数看成一个整体（-2 是"减 2"也是"加上 -2"），先圈出每一项连同它前面的符号，再合并。
+    level: 2
+    sources: [S15 全文]
+  mc-neg-sum:
+    name: 两个负数相加得正数
+    symptom: -6+(-8)=2 或 14；混淆运算符号和性质符号。
+    diagnostic: 计算 -6+(-8) 和 -6-(-8)，并在数轴上画出来。
+    remedy: 用数轴或"欠钱"情境：欠 6 元又欠 8 元是欠 14 元；再对照教材的有理数加法法则（同号相加，取相同的符号）。
+    level: 3
+    sources: [S28 MaE18, S28 MaE19]
+  mc-letter-object:
+    name: 字母当作对象（反转错误）
+    symptom: 「学生人数是老师人数的 6 倍」写成 6S=T。
+    diagnostic: 某校学生人数是老师人数的 6 倍，用 S 表示学生数、T 表示老师数，列等式。若 T=10，S 是多少？代入你的式子检查。
+    remedy: 字母表示"数量"而不是"人"。代入具体数检查（T=10 时 S 应是 60），让学生看到 6S=T 给出的结果不合理。
+    level: 2
+    sources: [S13 全文, S28 MaE54]
+  mc-letter-unit:
+    name: 字母当作单位
+    symptom: 3t=24 中把 t 读成"吨"。
+    diagnostic: 3 辆卡车共重 24 吨，列成 3t=24。t 表示什么？
+    remedy: 请学生用一句完整的话说出字母代表的数量（"每辆卡车的重量，单位是吨"）。
+    level: 2
+    sources: [S13 第2.2.2节]
+  mc-k-sign:
+    name: 负 k 判断错，或两点求 k 时点的顺序不一致
+    symptom: 说 y=-2x+1 中 y 随 x 增大而增大；求 k 时分子用 y2-y1、分母用 x1-x2。
+    diagnostic: 直线过 (0,3) 和 (2,-1)，求 k，并说出 y 随 x 增大怎样变化。
+    remedy: 列表取两三个 x 值看 y 怎样变；求 k 时分子分母用同一个顺序（都是"后一个点减前一个点"）。
+    level: 2
+    sources: [S18 全文, S28 MaE40]
+  mc-vertical-line:
+    name: 把 x=常数 当成一次函数
+    symptom: 说 x=-2 是一次函数，k=-2。
+    diagnostic: x=-2 是一次函数吗？它的图象是什么样的？
+    remedy: 回到函数定义：每个 x 只能对应一个 y。x=-2 时 y 可以取任何值，所以它不是函数，图象是一条竖直的直线。
+    level: 2
+    sources: [S18 第4.2节]
+  mc-func-representation:
+    name: 只会从解析式读 k、b，不会从图象或表格读
+    symptom: 能说出 y=2x-1 的 k、b，但给出图象或表格时说不出，或判断不了是不是一次函数。
+    diagnostic: 给一条过 (0,-1)、(1,1) 的直线的图象，请写出解析式；再给一张表格，判断它是不是一次函数。
+    remedy: 在解析式、表格、图象三种表示之间来回转换：b 是图象与 y 轴交点的纵坐标，k 是 x 每增加 1 时 y 的变化量。
+    level: 2
+    sources: [S18 全文]
+  mc-divide-by-variable:
+    name: 两边除以含未知数的式子丢根
+    symptom: x(x-2)+x-2=0 两边除以 (x-2)，只得 x=-1，丢了 x=2；10x-5x²=0 两边除以 x，丢了 x=0。
+    diagnostic: 用教材九上的 10x-5x²=0 或 x(x-2)+x-2=0，看学生是否只得一个根；再问"两边能不能除以 x"。
+    remedy: 除以一个可能为 0 的式子是不允许的；改用因式分解，让每个因式等于 0。把丢掉的根代回原方程，让学生看到它也成立。
+    level: 5
+    sources: [S10 教材九上第13页题目]
+  mc-root-meaning:
+    name: 不理解"方程的根"的含义
+    symptom: 解出两个根后不会代回检验，或认为两个根只能对一个。
+    diagnostic: x=0 和 x=2 都是 10x-5x²=0 的根吗？各自代回检验。
+    remedy: 根就是使等式成立的数：逐个代回原方程计算左边，等于右边就是根。
+    level: 3
+    sources: [S24 摘要级]
+  mc-ineq-flip:
+    name: 两边乘除负数时不等号不变向
+    symptom: -2x+3>7 解成 x>-2；或把不等式当方程解。
+    diagnostic: 解 -2x+3>7，并在数轴上表示解集；再问 x=-3 是否满足原不等式。
+    remedy: 用一个具体数检验（x=-3 代入原不等式成立，x=0 不成立），让学生看到 x>-2 不对；回到不等式性质 3：两边乘或除以同一个负数，不等号方向改变。
+    level: 3
+    sources: [S19 摘要级, S20 摘要级]

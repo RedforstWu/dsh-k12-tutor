@@ -1,0 +1,214 @@
+edition: pep-2024
+short: 人教版（2022课标修订版）
+name: 义务教育教科书·数学（根据2022年版课程标准修订），人民教育出版社
+note: 七年级上册自 2024 年秋季起使用。九年级下册新版在国家中小学智慧教育平台上尚未发布，未核实，暂不列出；九下内容见 pep-legacy。
+source: docs/research/02-junior-math.md §2.3（智慧教育平台目录页图片转录，2026-10-20）
+volumes:
+  - grade: 7
+    term: 上
+    smartedu_id: 540ac93d-67fc-4353-9e49-1ef20d02b5a4
+    chapters:
+      - n: 1
+        title: 有理数
+        sections:
+          - {n: "1.1", title: 正数和负数, kps: [negative-numbers]}
+          - {n: "1.2", title: 有理数及其大小比较, kps: [rational-number-line]}
+      - n: 2
+        title: 有理数的运算
+        sections:
+          - {n: "2.1", title: 有理数的加法与减法, kps: [rational-add-sub]}
+          - {n: "2.2", title: 有理数的乘法与除法, kps: [rational-mul-div]}
+          - {n: "2.3", title: 有理数的乘方, kps: [rational-power]}
+          - {n: 综合与实践, title: 进位制的认识与探究, kps: [practice-number-bases]}
+      - n: 3
+        title: 代数式
+        sections:
+          - {n: "3.1", title: 列代数式表示数量关系, kps: [algebraic-expression-write]}
+          - {n: "3.2", title: 代数式的值, kps: [algebraic-expression-value]}
+      - n: 4
+        title: 整式的加减
+        sections:
+          - {n: "4.1", title: 整式, kps: [polynomial-concepts]}
+          - {n: "4.2", title: 整式的加法与减法, kps: [like-terms-combine]}
+      - n: 5
+        title: 一元一次方程
+        sections:
+          - {n: "5.1", title: 方程, kps: [equation-concept]}
+          - {n: "5.2", title: 解一元一次方程, kps: [linear-eq-solve]}
+          - {n: "5.3", title: 实际问题与一元一次方程, kps: [linear-eq-apply]}
+      - n: 6
+        title: 几何图形初步
+        sections:
+          - {n: "6.1", title: 几何图形, kps: [geometric-figures]}
+          - {n: "6.2", title: 直线、射线、线段, kps: [line-ray-segment]}
+          - {n: "6.3", title: 角, kps: [angles]}
+          - {n: 综合与实践, title: 设计学校田径运动会比赛场地, kps: [practice-track-design]}
+  - grade: 7
+    term: 下
+    smartedu_id: 81d65033-4cb1-4cf0-ae27-8c367c537c30
+    chapters:
+      - n: 7
+        title: 相交线与平行线
+        sections:
+          - {n: "7.1", title: 相交线, kps: [intersecting-lines]}
+          - {n: "7.2", title: 平行线, kps: [parallel-lines]}
+          - {n: "7.3", title: 定义、命题、定理, kps: [propositions]}
+          - {n: "7.4", title: 平移, kps: [translation]}
+      - n: 8
+        title: 实数
+        sections:
+          - {n: "8.1", title: 平方根, kps: [square-root]}
+          - {n: "8.2", title: 立方根, kps: [cube-root]}
+          - {n: "8.3", title: 实数及其简单运算, kps: [real-numbers]}
+      - n: 9
+        title: 平面直角坐标系
+        sections:
+          - {n: "9.1", title: 用坐标描述平面内点的位置, kps: [coordinates]}
+          - {n: "9.2", title: 坐标方法的简单应用, kps: [coordinates-apply]}
+      - n: 10
+        title: 二元一次方程组
+        sections:
+          - {n: "10.1", title: 二元一次方程组的概念, kps: [linear-system-concept]}
+          - {n: "10.2", title: 消元 解二元一次方程组, kps: [linear-system-solve]}
+          - {n: "10.3", title: 实际问题与二元一次方程组, kps: [linear-system-apply]}
+          - {n: "*10.4", title: 三元一次方程组的解法, kps: [three-var-system]}
+      - n: 11
+        title: 不等式与不等式组
+        sections:
+          - {n: "11.1", title: 不等式, kps: [inequality-properties]}
+          - {n: "11.2", title: 一元一次不等式, kps: [linear-inequality-solve]}
+          - {n: "11.3", title: 一元一次不等式组, kps: [inequality-system]}
+          - {n: 综合与实践, title: 低碳生活, kps: [practice-low-carbon]}
+      - n: 12
+        title: 数据的收集、整理与描述
+        sections:
+          - {n: "12.1", title: 统计调查, kps: [statistical-survey]}
+          - {n: "12.2", title: 用统计图描述数据, kps: [statistical-charts]}
+          - {n: 综合与实践, title: 白昼时长规律的探究, kps: [practice-daylight]}
+  - grade: 8
+    term: 上
+    smartedu_id: 81264e9e-22bc-4289-8389-13b40433b5ba
+    chapters:
+      - n: 13
+        title: 三角形
+        sections:
+          - {n: "13.1", title: 三角形的概念, kps: [triangle-concepts]}
+          - {n: "13.2", title: 与三角形有关的线段, kps: [triangle-segments]}
+          - {n: "13.3", title: 三角形的内角与外角, kps: [triangle-angles]}
+          - {n: 综合与实践, title: 确定匀质薄板的重心位置, kps: [practice-centroid]}
+      - n: 14
+        title: 全等三角形
+        sections:
+          - {n: "14.1", title: 全等三角形及其性质, kps: [congruent-triangles]}
+          - {n: "14.2", title: 三角形全等的判定, kps: [congruence-criteria]}
+          - {n: "14.3", title: 角的平分线, kps: [angle-bisector]}
+      - n: 15
+        title: 轴对称
+        sections:
+          - {n: "15.1", title: 图形的轴对称, kps: [axial-symmetry]}
+          - {n: "15.2", title: 画轴对称的图形, kps: [draw-symmetric]}
+          - {n: "15.3", title: 等腰三角形, kps: [isosceles-triangle]}
+          - {n: 综合与实践, title: 最短路径问题, kps: [practice-shortest-path]}
+      - n: 16
+        title: 整式的乘法
+        sections:
+          - {n: "16.1", title: 幂的运算, kps: [exponent-rules]}
+          - {n: "16.2", title: 整式的乘法, kps: [polynomial-multiply]}
+          - {n: "16.3", title: 乘法公式, kps: [multiplication-formulas]}
+      - n: 17
+        title: 因式分解
+        sections:
+          - {n: "17.1", title: 用提公因式法分解因式, kps: [factor-common]}
+          - {n: "17.2", title: 用公式法分解因式, kps: [factor-formulas]}
+      - n: 18
+        title: 分式
+        sections:
+          - {n: "18.1", title: 分式及其基本性质, kps: [fraction-expression-basics]}
+          - {n: "18.2", title: 分式的乘法与除法, kps: [fraction-mul-div]}
+          - {n: "18.3", title: 分式的加法与减法, kps: [fraction-add-sub]}
+          - {n: "18.4", title: 整数指数幂, kps: [integer-exponents]}
+          - {n: "18.5", title: 分式方程, kps: [fractional-equation]}
+  - grade: 8
+    term: 下
+    smartedu_id: e91a6f80-2a9a-4452-a47e-b9ec164156ff
+    chapters:
+      - n: 19
+        title: 二次根式
+        sections:
+          - {n: "19.1", title: 二次根式及其性质, kps: [quadratic-radical]}
+          - {n: "19.2", title: 二次根式的乘法与除法, kps: [radical-mul-div]}
+          - {n: "19.3", title: 二次根式的加法与减法, kps: [radical-add-sub]}
+      - n: 20
+        title: 勾股定理
+        sections:
+          - {n: "20.1", title: 勾股定理及其应用, kps: [pythagorean-theorem]}
+          - {n: "20.2", title: 勾股定理的逆定理及其应用, kps: [pythagorean-converse]}
+      - n: 21
+        title: 四边形
+        sections:
+          - {n: "21.1", title: 四边形及多边形, kps: [polygons]}
+          - {n: "21.2", title: 平行四边形, kps: [parallelogram]}
+          - {n: "21.3", title: 特殊的平行四边形, kps: [special-parallelograms]}
+      - n: 22
+        title: 函数
+        sections:
+          - {n: "22.1", title: 函数的概念, kps: [function-concept]}
+          - {n: "22.2", title: 函数的表示, kps: [function-representation]}
+      - n: 23
+        title: 一次函数
+        sections:
+          - {n: "23.1", title: 一次函数的概念, kps: [linear-function-concept]}
+          - {n: "23.2", title: 一次函数的图象和性质, kps: [linear-function-graph]}
+          - {n: "23.3", title: 一次函数与方程（组）、不等式, kps: [linear-function-equation-inequality]}
+          - {n: "23.4", title: 实际问题与一次函数, kps: [linear-function-apply]}
+          - {n: 综合与实践, title: 音乐与数学, kps: [practice-music]}
+      - n: 24
+        title: 数据的分析
+        sections:
+          - {n: "24.1", title: 数据的集中趋势, kps: [central-tendency]}
+          - {n: "24.2", title: 数据的离散程度, kps: [dispersion]}
+          - {n: "24.3", title: 数据的四分位数, kps: [quartiles]}
+          - {n: "24.4", title: 数据的分组, kps: [data-grouping]}
+          - {n: 综合与实践, title: 学生体质健康调查与分析, kps: [practice-fitness-survey]}
+  - grade: 9
+    term: 上
+    smartedu_id: 937a48c1-de81-4cc6-91b2-617cd859de4b
+    chapters:
+      - n: 25
+        title: 一元二次方程
+        sections:
+          - {n: "25.1", title: 一元二次方程的概念, kps: [quadratic-eq-concept]}
+          - {n: "25.2", title: 降次 解一元二次方程, kps: [quadratic-eq-solve]}
+          - {n: "25.3", title: 实际问题与一元二次方程, kps: [quadratic-eq-apply]}
+      - n: 26
+        title: 二次函数
+        sections:
+          - {n: "26.1", title: 二次函数的概念, kps: [quadratic-function-concept]}
+          - {n: "26.2", title: 二次函数的图象和性质, kps: [quadratic-function-graph]}
+          - {n: "26.3", title: 二次函数与一元二次方程, kps: [quadratic-function-equation]}
+          - {n: "26.4", title: 实际问题与二次函数, kps: [quadratic-function-apply]}
+      - n: 27
+        title: 反比例函数
+        sections:
+          - {n: "27.1", title: 反比例函数的概念, kps: [inverse-function-concept]}
+          - {n: "27.2", title: 反比例函数的图象和性质, kps: [inverse-function-graph]}
+          - {n: "27.3", title: 实际问题与反比例函数, kps: [inverse-function-apply]}
+          - {n: 综合与实践, title: 高铁列车运行中的数量关系, kps: [practice-high-speed-rail]}
+      - n: 28
+        title: 旋转
+        sections:
+          - {n: "28.1", title: 图形的旋转, kps: [rotation]}
+          - {n: "28.2", title: 中心对称, kps: [central-symmetry]}
+      - n: 29
+        title: 圆
+        sections:
+          - {n: "29.1", title: 圆的有关概念, kps: [circle-concepts]}
+          - {n: "29.2", title: 圆的有关性质, kps: [circle-properties]}
+          - {n: "29.3", title: 弧长和扇形面积, kps: [arc-sector]}
+      - n: 30
+        title: 直线与圆的位置关系
+        sections:
+          - {n: "30.1", title: 直线与圆, kps: [line-circle-position]}
+          - {n: "30.2", title: 三角形的内切圆, kps: [incircle]}
+          - {n: "30.3", title: 正多边形与圆, kps: [regular-polygon-circle]}
+          - {n: 综合与实践, title: 生活中的优化问题, kps: [practice-optimization]}

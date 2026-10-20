@@ -1,0 +1,20 @@
+# Optional rows for the profile that hosts the tutor; copy them into <DSH_HOME>/profiles/<name>/cordis.patch.yml.
+# They change the whole profile, which is why the bundle itself does not carry them.
+
+# New sessions open with the tutor preset.
+- id: agent-preset-registry
+  config:
+    default: k12-tutor
+
+# One workspace is one student: the tutor must not change its working directory.
+- id: tool-working-directory
+  disabled: true
+
+# Pick a student's workspace in the browser instead of a native dialog (also works headless).
+- id: directory-picker
+  disabled: true
+- insert:
+    - id: directory-picker-browse
+      name: '@deepseek-ai/dsh-host-directory-picker-browse'
+    - id: directory-picker-browse-surface
+      name: '@deepseek-ai/dsh-client-ui-directory-picker-browse'

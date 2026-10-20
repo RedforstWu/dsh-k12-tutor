@@ -1,0 +1,119 @@
+# Every knowledge point of the 初中数学 pack, edition-neutral. kp/<id>.md adds curriculum references and the
+# teaching body for points with full content; the rest are outline entries (catalog only, no worked examples).
+# Textbook placement lives in textbooks/<edition>.yaml. Source of the chapter structure:
+# docs/research/02-junior-math.md §2.3 (人教版 2022 课标修订版 七上 to 九上, 旧版 九下, read from smartedu page images).
+kps:
+  # 七年级上册
+  negative-numbers: {name: 正数和负数, grade: 7, domain: 数与代数, aliases: [正数, 负数, 相反意义的量]}
+  rational-number-line: {name: 有理数与数轴、相反数、绝对值, grade: 7, domain: 数与代数, aliases: [有理数, 数轴, 相反数, 绝对值, 比较大小], prerequisites: [negative-numbers]}
+  rational-add-sub: {name: 有理数的加法与减法, grade: 7, domain: 数与代数, aliases: [有理数加法, 有理数减法, 有理数的加减, 有理数加减, 负数相加, 减去一个负数, 加减混合运算], prerequisites: [rational-number-line], misconceptions: [mc-neg-sum, mc-detached-minus]}
+  rational-mul-div: {name: 有理数的乘法与除法, grade: 7, domain: 数与代数, aliases: [有理数乘法, 有理数除法, 倒数, 同号得正], prerequisites: [rational-add-sub]}
+  rational-power: {name: 有理数的乘方与混合运算, grade: 7, domain: 数与代数, aliases: [乘方, 幂, 混合运算, 科学记数法, 近似数], prerequisites: [rational-mul-div]}
+  practice-number-bases: {name: 综合与实践：进位制的认识与探究, grade: 7, domain: 综合与实践, aliases: [进位制, 二进制]}
+  algebraic-expression-write: {name: 列代数式与用字母表示数, grade: 7, domain: 数与代数, aliases: [列代数式, 用字母表示数, 代数式, 数量关系], misconceptions: [mc-letter-object, mc-letter-unit]}
+  algebraic-expression-value: {name: 代数式的值, grade: 7, domain: 数与代数, aliases: [代数式的值, 代入求值], prerequisites: [algebraic-expression-write]}
+  polynomial-concepts: {name: 整式（单项式、多项式）, grade: 7, domain: 数与代数, aliases: [整式, 单项式, 多项式, 系数, 次数], prerequisites: [algebraic-expression-write]}
+  like-terms-combine: {name: 整式的加减（合并同类项、去括号）, grade: 7, domain: 数与代数, aliases: [合并同类项, 同类项, 去括号, 整式的加减], prerequisites: [polynomial-concepts, rational-add-sub]}
+  equation-concept: {name: 方程与等式的性质, grade: 7, domain: 数与代数, aliases: [方程, 方程的解, 等式的性质, 等式性质], prerequisites: [algebraic-expression-value]}
+  linear-eq-solve: {name: 解一元一次方程, grade: 7, domain: 数与代数, aliases: [一元一次方程, 解方程, 移项, 系数化为1, 去分母], prerequisites: [equation-concept, like-terms-combine], misconceptions: [mc-transpose-sign, mc-minuend-swap, mc-distribute-sign, mc-no-check]}
+  linear-eq-apply: {name: 实际问题与一元一次方程, grade: 7, domain: 数与代数, aliases: [列方程解应用题, 一元一次方程应用题, 行程问题, 工程问题], prerequisites: [linear-eq-solve, algebraic-expression-write]}
+  geometric-figures: {name: 几何图形（立体图形与平面图形）, grade: 7, domain: 图形与几何, aliases: [立体图形, 平面图形, 展开图]}
+  line-ray-segment: {name: 直线、射线、线段, grade: 7, domain: 图形与几何, aliases: [直线, 射线, 线段, 两点之间线段最短, 中点]}
+  angles: {name: 角（度量、比较、余角补角）, grade: 7, domain: 图形与几何, aliases: [角, 余角, 补角, 角平分线, 度分秒], prerequisites: [line-ray-segment]}
+  practice-track-design: {name: 综合与实践：设计学校田径运动会比赛场地, grade: 7, domain: 综合与实践, aliases: [田径场, 跑道设计]}
+  # 七年级下册
+  intersecting-lines: {name: 相交线（对顶角、垂线）, grade: 7, domain: 图形与几何, aliases: [相交线, 对顶角, 垂线, 邻补角, 同位角, 内错角, 同旁内角], prerequisites: [angles]}
+  parallel-lines: {name: 平行线及其判定与性质, grade: 7, domain: 图形与几何, aliases: [平行线, 平行线的判定, 平行线的性质], prerequisites: [intersecting-lines]}
+  propositions: {name: 定义、命题、定理, grade: 7, domain: 图形与几何, aliases: [命题, 定理, 真命题, 假命题, 证明]}
+  translation: {name: 平移, grade: 7, domain: 图形与几何, aliases: [平移]}
+  square-root: {name: 平方根与算术平方根, grade: 7, domain: 数与代数, aliases: [平方根, 算术平方根, 开平方]}
+  cube-root: {name: 立方根, grade: 7, domain: 数与代数, aliases: [立方根, 开立方]}
+  real-numbers: {name: 实数及其简单运算, grade: 7, domain: 数与代数, aliases: [实数, 无理数, 估算], prerequisites: [square-root, cube-root]}
+  coordinates: {name: 平面直角坐标系, grade: 7, domain: 图形与几何, aliases: [坐标系, 坐标, 象限, 有序数对]}
+  coordinates-apply: {name: 坐标方法的简单应用, grade: 7, domain: 图形与几何, aliases: [用坐标表示地理位置, 用坐标表示平移], prerequisites: [coordinates, translation]}
+  linear-system-concept: {name: 二元一次方程组的概念, grade: 7, domain: 数与代数, aliases: [二元一次方程, 二元一次方程组]}
+  linear-system-solve: {name: 消元法解二元一次方程组, grade: 7, domain: 数与代数, aliases: [代入消元, 加减消元, 解方程组, 消元], prerequisites: [linear-system-concept, linear-eq-solve]}
+  linear-system-apply: {name: 实际问题与二元一次方程组, grade: 7, domain: 数与代数, aliases: [方程组应用题], prerequisites: [linear-system-solve]}
+  three-var-system: {name: 三元一次方程组的解法（选学）, grade: 7, domain: 数与代数, aliases: [三元一次方程组], prerequisites: [linear-system-solve]}
+  inequality-properties: {name: 不等式及其基本性质, grade: 7, domain: 数与代数, aliases: [不等式, 不等式的性质, 不等号]}
+  linear-inequality-solve: {name: 解一元一次不等式, grade: 7, domain: 数与代数, aliases: [一元一次不等式, 解不等式, 解集, 不等号方向], prerequisites: [inequality-properties, linear-eq-solve], misconceptions: [mc-ineq-flip, mc-distribute-sign]}
+  inequality-system: {name: 一元一次不等式组, grade: 7, domain: 数与代数, aliases: [不等式组], prerequisites: [linear-inequality-solve]}
+  practice-low-carbon: {name: 综合与实践：低碳生活, grade: 7, domain: 综合与实践, aliases: [低碳生活]}
+  statistical-survey: {name: 统计调查（全面调查与抽样调查）, grade: 7, domain: 统计与概率, aliases: [全面调查, 抽样调查, 样本, 总体]}
+  statistical-charts: {name: 用统计图描述数据（含频数直方图）, grade: 7, domain: 统计与概率, aliases: [统计图, 扇形图, 条形图, 折线图, 频数分布直方图], prerequisites: [statistical-survey]}
+  practice-daylight: {name: 综合与实践：白昼时长规律的探究, grade: 7, domain: 综合与实践, aliases: [白昼时长]}
+  # 八年级上册
+  triangle-concepts: {name: 三角形的概念, grade: 8, domain: 图形与几何, aliases: [三角形, 三角形的三边关系]}
+  triangle-segments: {name: 与三角形有关的线段（高、中线、角平分线）, grade: 8, domain: 图形与几何, aliases: [三角形的高, 中线, 三角形的角平分线, 稳定性], prerequisites: [triangle-concepts]}
+  triangle-angles: {name: 三角形的内角与外角, grade: 8, domain: 图形与几何, aliases: [内角和, 外角, 三角形内角和定理], prerequisites: [triangle-concepts, parallel-lines]}
+  practice-centroid: {name: 综合与实践：确定匀质薄板的重心位置, grade: 8, domain: 综合与实践, aliases: [重心]}
+  congruent-triangles: {name: 全等三角形及其性质, grade: 8, domain: 图形与几何, aliases: [全等三角形, 全等, 对应边, 对应角], prerequisites: [triangle-angles]}
+  congruence-criteria: {name: 三角形全等的判定, grade: 8, domain: 图形与几何, aliases: [SSS, SAS, ASA, AAS, HL, 全等的判定], prerequisites: [congruent-triangles, propositions]}
+  angle-bisector: {name: 角的平分线的性质, grade: 8, domain: 图形与几何, aliases: [角平分线的性质, 角平分线上的点], prerequisites: [congruence-criteria]}
+  axial-symmetry: {name: 图形的轴对称（垂直平分线）, grade: 8, domain: 图形与几何, aliases: [轴对称, 对称轴, 垂直平分线]}
+  draw-symmetric: {name: 画轴对称的图形（坐标中的轴对称）, grade: 8, domain: 图形与几何, aliases: [画轴对称图形, 关于x轴对称, 关于y轴对称], prerequisites: [axial-symmetry, coordinates]}
+  isosceles-triangle: {name: 等腰三角形与等边三角形, grade: 8, domain: 图形与几何, aliases: [等腰三角形, 等边三角形, 三线合一], prerequisites: [axial-symmetry, congruence-criteria]}
+  practice-shortest-path: {name: 综合与实践：最短路径问题, grade: 8, domain: 综合与实践, aliases: [最短路径, 将军饮马], prerequisites: [axial-symmetry]}
+  exponent-rules: {name: 幂的运算, grade: 8, domain: 数与代数, aliases: [同底数幂, 幂的乘方, 积的乘方, 同底数幂的除法]}
+  polynomial-multiply: {name: 整式的乘法与除法, grade: 8, domain: 数与代数, aliases: [单项式乘多项式, 多项式乘多项式, 整式的乘法, 整式的除法], prerequisites: [exponent-rules, like-terms-combine]}
+  multiplication-formulas: {name: 乘法公式（平方差、完全平方）, grade: 8, domain: 数与代数, aliases: [平方差公式, 完全平方公式, 乘法公式], prerequisites: [polynomial-multiply]}
+  factor-common: {name: 提公因式法分解因式, grade: 8, domain: 数与代数, aliases: [因式分解, 提公因式, 公因式], prerequisites: [polynomial-multiply]}
+  factor-formulas: {name: 公式法分解因式, grade: 8, domain: 数与代数, aliases: [公式法, 用平方差公式分解, 用完全平方公式分解], prerequisites: [factor-common, multiplication-formulas]}
+  fraction-expression-basics: {name: 分式及其基本性质, grade: 8, domain: 数与代数, aliases: [分式, 分式有意义, 约分, 通分, 分母不能为零], prerequisites: [factor-formulas]}
+  fraction-mul-div: {name: 分式的乘法与除法, grade: 8, domain: 数与代数, aliases: [分式乘除], prerequisites: [fraction-expression-basics]}
+  fraction-add-sub: {name: 分式的加法与减法, grade: 8, domain: 数与代数, aliases: [分式加减, 异分母分式], prerequisites: [fraction-expression-basics]}
+  integer-exponents: {name: 整数指数幂, grade: 8, domain: 数与代数, aliases: [负整数指数幂, 零指数幂, 科学记数法表示小数], prerequisites: [exponent-rules]}
+  fractional-equation: {name: 分式方程, grade: 8, domain: 数与代数, aliases: [分式方程, 增根, 检验], prerequisites: [fraction-add-sub, linear-eq-solve]}
+  # 八年级下册
+  quadratic-radical: {name: 二次根式及其性质, grade: 8, domain: 数与代数, aliases: [二次根式, 最简二次根式], prerequisites: [square-root]}
+  radical-mul-div: {name: 二次根式的乘法与除法, grade: 8, domain: 数与代数, aliases: [二次根式乘除], prerequisites: [quadratic-radical]}
+  radical-add-sub: {name: 二次根式的加法与减法, grade: 8, domain: 数与代数, aliases: [二次根式加减, 同类二次根式], prerequisites: [quadratic-radical]}
+  pythagorean-theorem: {name: 勾股定理及其应用, grade: 8, domain: 图形与几何, aliases: [勾股定理, 直角三角形三边, 斜边], prerequisites: [square-root, triangle-concepts]}
+  pythagorean-converse: {name: 勾股定理的逆定理及其应用, grade: 8, domain: 图形与几何, aliases: [勾股定理的逆定理, 勾股数, 判定直角三角形], prerequisites: [pythagorean-theorem]}
+  polygons: {name: 四边形及多边形, grade: 8, domain: 图形与几何, aliases: [多边形, 多边形内角和, 外角和]}
+  parallelogram: {name: 平行四边形, grade: 8, domain: 图形与几何, aliases: [平行四边形, 平行四边形的判定, 平行四边形的性质, 三角形中位线], prerequisites: [congruence-criteria, parallel-lines]}
+  special-parallelograms: {name: 特殊的平行四边形（矩形、菱形、正方形）, grade: 8, domain: 图形与几何, aliases: [矩形, 菱形, 正方形], prerequisites: [parallelogram]}
+  function-concept: {name: 函数的概念（变量与常量）, grade: 8, domain: 数与代数, aliases: [函数, 变量, 常量, 自变量, 函数值]}
+  function-representation: {name: 函数的表示（解析式、列表、图象）, grade: 8, domain: 数与代数, aliases: [函数图象, 列表法, 解析式法, 图象法], prerequisites: [function-concept, coordinates]}
+  linear-function-concept: {name: 一次函数与正比例函数的概念, grade: 8, domain: 数与代数, aliases: [一次函数, 正比例函数], prerequisites: [function-representation]}
+  linear-function-graph: {name: 一次函数的图象和性质（k、b 的意义）, grade: 8, domain: 数与代数, aliases: [一次函数的图象, 一次函数的性质, k的意义, b的意义, k的含义, b的含义, 斜率, 截距, y随x增大, 待定系数法], prerequisites: [linear-function-concept], misconceptions: [mc-k-sign, mc-vertical-line, mc-func-representation]}
+  linear-function-equation-inequality: {name: 一次函数与方程（组）、不等式, grade: 8, domain: 数与代数, aliases: [一次函数与方程, 一次函数与不等式, 交点坐标], prerequisites: [linear-function-graph, linear-system-solve, linear-inequality-solve]}
+  linear-function-apply: {name: 实际问题与一次函数, grade: 8, domain: 数与代数, aliases: [一次函数应用题, 方案选择], prerequisites: [linear-function-graph]}
+  practice-music: {name: 综合与实践：音乐与数学, grade: 8, domain: 综合与实践, aliases: [音乐与数学]}
+  central-tendency: {name: 数据的集中趋势（平均数、中位数、众数）, grade: 8, domain: 统计与概率, aliases: [平均数, 加权平均数, 中位数, 众数]}
+  dispersion: {name: 数据的离散程度（方差）, grade: 8, domain: 统计与概率, aliases: [方差, 极差, 离散程度], prerequisites: [central-tendency]}
+  quartiles: {name: 数据的四分位数（箱线图）, grade: 8, domain: 统计与概率, aliases: [四分位数, 箱线图], prerequisites: [central-tendency]}
+  data-grouping: {name: 数据的分组, grade: 8, domain: 统计与概率, aliases: [数据分组, 组内离差平方和], prerequisites: [dispersion]}
+  practice-fitness-survey: {name: 综合与实践：学生体质健康调查与分析, grade: 8, domain: 综合与实践, aliases: [体质健康调查]}
+  # 九年级上册
+  quadratic-eq-concept: {name: 一元二次方程的概念, grade: 9, domain: 数与代数, aliases: [一元二次方程, 一般形式, 二次项系数], prerequisites: [linear-eq-solve]}
+  quadratic-eq-solve: {name: 解一元二次方程（配方法、公式法、因式分解法）, grade: 9, domain: 数与代数, aliases: [配方法, 公式法, 因式分解法, 直接开平方法, 降次, 判别式, 求根公式, 根与系数的关系], prerequisites: [quadratic-eq-concept, factor-formulas, square-root], misconceptions: [mc-divide-by-variable, mc-root-meaning]}
+  quadratic-eq-apply: {name: 实际问题与一元二次方程, grade: 9, domain: 数与代数, aliases: [一元二次方程应用题, 增长率, 面积问题], prerequisites: [quadratic-eq-solve]}
+  quadratic-function-concept: {name: 二次函数的概念, grade: 9, domain: 数与代数, aliases: [二次函数], prerequisites: [linear-function-concept, quadratic-eq-concept]}
+  quadratic-function-graph: {name: 二次函数的图象和性质, grade: 9, domain: 数与代数, aliases: [抛物线, 顶点, 对称轴, 开口方向, 顶点式, 最值], prerequisites: [quadratic-function-concept]}
+  quadratic-function-equation: {name: 二次函数与一元二次方程, grade: 9, domain: 数与代数, aliases: [抛物线与x轴交点, 图象法求近似解], prerequisites: [quadratic-function-graph, quadratic-eq-solve]}
+  quadratic-function-apply: {name: 实际问题与二次函数, grade: 9, domain: 数与代数, aliases: [最大利润, 二次函数应用题], prerequisites: [quadratic-function-graph]}
+  inverse-function-concept: {name: 反比例函数的概念, grade: 9, domain: 数与代数, aliases: [反比例函数], prerequisites: [function-concept]}
+  inverse-function-graph: {name: 反比例函数的图象和性质, grade: 9, domain: 数与代数, aliases: [双曲线, 反比例函数的图象], prerequisites: [inverse-function-concept]}
+  inverse-function-apply: {name: 实际问题与反比例函数, grade: 9, domain: 数与代数, aliases: [反比例函数应用题], prerequisites: [inverse-function-graph]}
+  practice-high-speed-rail: {name: 综合与实践：高铁列车运行中的数量关系, grade: 9, domain: 综合与实践, aliases: [高铁]}
+  rotation: {name: 图形的旋转, grade: 9, domain: 图形与几何, aliases: [旋转, 旋转中心, 旋转角]}
+  central-symmetry: {name: 中心对称, grade: 9, domain: 图形与几何, aliases: [中心对称, 中心对称图形, 关于原点对称], prerequisites: [rotation]}
+  circle-concepts: {name: 圆的有关概念, grade: 9, domain: 图形与几何, aliases: [圆, 弦, 弧, 半径, 直径]}
+  circle-properties: {name: 圆的有关性质（垂径定理、圆周角）, grade: 9, domain: 图形与几何, aliases: [垂径定理, 圆周角, 圆心角, 圆内接四边形], prerequisites: [circle-concepts, congruence-criteria]}
+  arc-sector: {name: 弧长和扇形面积, grade: 9, domain: 图形与几何, aliases: [弧长, 扇形面积, 圆锥侧面积], prerequisites: [circle-concepts]}
+  line-circle-position: {name: 直线与圆的位置关系（切线）, grade: 9, domain: 图形与几何, aliases: [切线, 切线的判定, 切线长定理, 相切, 相离, 相交], prerequisites: [circle-properties]}
+  incircle: {name: 三角形的内切圆, grade: 9, domain: 图形与几何, aliases: [内切圆, 内心], prerequisites: [line-circle-position, angle-bisector]}
+  regular-polygon-circle: {name: 正多边形与圆, grade: 9, domain: 图形与几何, aliases: [正多边形, 中心角, 边心距], prerequisites: [circle-properties]}
+  practice-optimization: {name: 综合与实践：生活中的优化问题, grade: 9, domain: 综合与实践, aliases: [优化问题]}
+  # 九年级下册（平台现存为旧版；新版九下未核实）
+  similar-figures: {name: 图形的相似, grade: 9, domain: 图形与几何, aliases: [相似图形, 相似多边形, 比例线段]}
+  similar-triangles: {name: 相似三角形的判定与性质, grade: 9, domain: 图形与几何, aliases: [相似三角形, 相似比, 面积比], prerequisites: [similar-figures]}
+  homothety: {name: 位似, grade: 9, domain: 图形与几何, aliases: [位似, 位似中心], prerequisites: [similar-triangles]}
+  trig-ratios: {name: 锐角三角函数, grade: 9, domain: 图形与几何, aliases: [正弦, 余弦, 正切, sin, cos, tan, 特殊角的三角函数值], prerequisites: [similar-triangles, pythagorean-theorem]}
+  solve-right-triangle: {name: 解直角三角形及其应用, grade: 9, domain: 图形与几何, aliases: [解直角三角形, 仰角, 俯角, 坡度], prerequisites: [trig-ratios]}
+  projection: {name: 投影, grade: 9, domain: 图形与几何, aliases: [平行投影, 中心投影]}
+  three-views: {name: 三视图, grade: 9, domain: 图形与几何, aliases: [三视图, 主视图, 左视图, 俯视图], prerequisites: [projection, geometric-figures]}
+  practice-solid-model: {name: 课题学习：制作立体模型, grade: 9, domain: 综合与实践, aliases: [立体模型]}
+  # 课标第四学段要求、人教版新版位置未核实
+  probability-basic: {name: 随机事件与概率（列表、树状图、用频率估计概率）, grade: 9, domain: 统计与概率, aliases: [概率, 随机事件, 树状图, 列表法, 频率估计概率, 等可能], unplaced: true}

@@ -1,0 +1,32 @@
+edition: pep-legacy
+short: 人教版（旧版）
+name: 义务教育教科书·数学（未按 2022 年版课程标准修订），人民教育出版社
+note: 只收九年级下册：截至 2026-10-20 智慧教育平台上的人教版九下仍是旧版（主编 林群），章号从第二十六章重新编起。新版九下发布后删除本文件。
+source: docs/research/02-junior-math.md §2.3（智慧教育平台目录页图片转录，2026-10-20）
+volumes:
+  - grade: 9
+    term: 下
+    smartedu_id: ab188631-292c-455e-8082-e09a0ab4001c
+    chapters:
+      - n: 26
+        title: 反比例函数
+        sections:
+          - {n: "26.1", title: 反比例函数, kps: [inverse-function-concept, inverse-function-graph]}
+          - {n: "26.2", title: 实际问题与反比例函数, kps: [inverse-function-apply]}
+      - n: 27
+        title: 相似
+        sections:
+          - {n: "27.1", title: 图形的相似, kps: [similar-figures]}
+          - {n: "27.2", title: 相似三角形, kps: [similar-triangles]}
+          - {n: "27.3", title: 位似, kps: [homothety]}
+      - n: 28
+        title: 锐角三角函数
+        sections:
+          - {n: "28.1", title: 锐角三角函数, kps: [trig-ratios]}
+          - {n: "28.2", title: 解直角三角形及其应用, kps: [solve-right-triangle]}
+      - n: 29
+        title: 投影与视图
+        sections:
+          - {n: "29.1", title: 投影, kps: [projection]}
+          - {n: "29.2", title: 三视图, kps: [three-views]}
+          - {n: "29.3", title: 课题学习 制作立体模型, kps: [practice-solid-model]}
