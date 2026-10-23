@@ -50,6 +50,7 @@ class KnowledgePoint:
     body: str
     path: Path | None  # the kp/<id>.md file; None for an outline point
     examples: tuple[dict, ...] = ()  # worked examples: problem, check (a math_check call), expect, answer, errors, hints
+    explanation_summary: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -122,11 +123,16 @@ def _kp(kp_id: str, meta: dict, body: str, path: Path | None) -> KnowledgePoint:
         if not meta.get(key):
             raise PackError(f"knowledge point {kp_id}: missing {key}")
     status = "full" if path else "outline"
+    summary = meta.get("explanation_summary", [])
+    if (not isinstance(summary, list) or len(summary) > 2
+            or any(not isinstance(line, str) or not line.strip() for line in summary)):
+        raise PackError(f"knowledge point {kp_id}: explanation_summary must be a list of at most two nonempty strings")
     return KnowledgePoint(
         id=kp_id, name=str(meta["name"]), grade=int(meta["grade"]), domain=str(meta["domain"]),
         aliases=_tuple(meta.get("aliases")), curriculum=_tuple(meta.get("curriculum")),
         prerequisites=_tuple(meta.get("prerequisites")), misconceptions=_tuple(meta.get("misconceptions")),
-        status=status, body=body, path=path, examples=tuple(meta.get("examples") or ()))
+        status=status, body=body, path=path, examples=tuple(meta.get("examples") or ()),
+        explanation_summary=tuple(line.strip() for line in summary))
 
 
 def load_kps(directory: Path) -> dict[str, KnowledgePoint]:

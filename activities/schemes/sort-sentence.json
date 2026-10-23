@@ -1,0 +1,128 @@
+{
+ "schema": "k12-scheme-snapshot/1",
+ "id": "sort-sentence",
+ "version": "0.3.0",
+ "name": "句序排序",
+ "summary": "玩家把打乱的短片段点选或拖入作答区，排成唯一正确的顺序后提交；第一次答错可调整后再交一次，第二次仍错则自动演示正确顺序。",
+ "suitableFor": [
+  "有唯一正确顺序的短片段排序，排序依据能从题面文字判断",
+  "按时间、流程、步骤、情节或数值顺序排列",
+  "把句子或定义切分成短片段后按顺序拼合"
+ ],
+ "notSuitableFor": [
+  "分类或分组",
+  "配对、填空",
+  "没有固定顺序或存在多种合理排序的任务",
+  "需要场景线索、首项提示或逐步推导才能完成的任务",
+  "需要在片段中混入干扰项的排序"
+ ],
+ "components": {
+  "cartoon": "3lkCMK8mP3HyA8nEnF3Ah3Pz",
+  "retro-industrial": "BIC2TB5fb3DyAzC91UBan1YD",
+  "urban-tech": "9kQ4hAAqk3DA8zM6Ok-ySBSU"
+ },
+ "params": {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "sort-sentence 参数",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+   "options",
+   "answer"
+  ],
+  "properties": {
+   "title": {
+    "type": "string",
+    "pattern": "\\S",
+    "description": "标题，选填；传入时不能为空白。不单独显示，只在没有 question 时作为顶部题干显示。"
+   },
+   "question": {
+    "type": "string",
+    "pattern": "\\S",
+    "description": "顶部题干，选填；传入时不能为空白。未传时显示 title，二者都未传时显示“请将下列内容按正确顺序排列。”。"
+   },
+   "options": {
+    "type": "array",
+    "minItems": 5,
+    "description": "按正确顺序填写的全部待排序片段，组件会打乱展示。判定以本数组顺序为准，玩家必须把全部片段都排入作答区，因此不能混入干扰项。",
+    "items": {
+     "type": "string",
+     "pattern": "\\S"
+    }
+   },
+   "answer": {
+    "type": "string",
+    "pattern": "\\S",
+    "description": "标准答案文本，必填且不能为空白；写 options 按顺序拼接的文本。参考实现不使用它判定。"
+   }
+  }
+ },
+ "semanticRules": [
+  {
+   "id": "option-unique",
+   "description": "options 中的片段文案互不重复，避免相同片段互换位置后无法区分。",
+   "check": {
+    "type": "unique",
+    "path": "options[]"
+   }
+  },
+  {
+   "id": "order-unique",
+   "description": "options 的正确顺序必须唯一：排序标准（时间、流程、因果、数值大小等）要写清楚，不存在两种都合理的排列。",
+   "check": null
+  },
+  {
+   "id": "answer-matches-options",
+   "description": "answer 写 options 按顺序拼接得到的文本，不增删字词或标点；参考实现不使用 answer 判定，只要求它非空。",
+   "check": null
+  }
+ ],
+ "outcomes": [
+  {
+   "status": 0,
+   "kind": "process",
+   "semantic": null,
+   "terminal": false,
+   "message": "ready",
+   "trigger": "组件收到有效参数并完成初始化"
+  },
+  {
+   "status": 1,
+   "kind": "graded",
+   "semantic": "success",
+   "terminal": true,
+   "message": "correct",
+   "trigger": "第一次或第二次提交时作答区恰好包含全部片段且顺序与 options 一致，玩家点击“继续”时上报"
+  },
+  {
+   "status": 2,
+   "kind": "graded",
+   "semantic": "fail",
+   "terminal": true,
+   "message": "wrong",
+   "trigger": "两次提交都不正确，自动演示正确顺序结束后玩家点击“继续”时上报"
+  },
+  {
+   "status": -1,
+   "kind": "graded",
+   "semantic": "exit",
+   "terminal": true,
+   "message": "exit",
+   "trigger": "组件请求退出且退出前约 100 毫秒内未上报状态时由 ai-view 补发；本组件从不请求退出，不会出现"
+  }
+ ],
+ "sample": {
+  "title": "将选项按顺序排序",
+  "options": [
+   "弹力",
+   "是指",
+   "发生弹性形变的物体",
+   "由于",
+   "要恢复原状",
+   "对与它接触的物体",
+   "产生的作用力"
+  ],
+  "answer": "弹力是指‌发生弹性形变的物体‌，由于要恢复原状，对与它‌接触的物体‌产生"
+ },
+ "source": "https://interaction-scheme-hub.sdp.ndaeweb.com/api/v1/schemes/sort-sentence/versions/0.3.0"
+}

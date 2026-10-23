@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>等式天平</title><style>/*__BASE_CSS__*/
+.pans { display: flex; justify-content: space-around; align-items: flex-end; height: 70px; }
+.pan { min-width: 38%; text-align: center; padding: 10px; border-bottom: 4px solid #8a6d3b; }
+.beam { height: 6px; background: #8a6d3b; margin: 0 6%; border-radius: 3px; transition: transform .5s; }
+.post { width: 8px; height: 40px; background: #8a6d3b; margin: 0 auto; }
+#history div { color: #666; } #history div:last-child { color: #222; font-weight: bold; }
+</style></head>
+<body>
+<h1 id="title">等式天平：两边做同样的事</h1>
+<p class="lead">等式就像一架平衡的天平。每次对<strong>两边同时</strong>做同一件事，天平保持平衡。目标是让一边只剩下 x。</p>
+<div class="panel">
+  <div class="pans"><div class="pan math" id="left"></div><div class="pan math" id="right"></div></div>
+  <div class="beam" id="beam"></div><div class="post"></div>
+  <div class="row">两边同时
+    <select id="op"><option value="add">加上</option><option value="sub">减去</option><option value="mul">乘以</option><option value="div">除以</option></select>
+    <input id="val" type="text" placeholder="例如 4x 或 20"> <button class="primary" id="apply">做这一步</button> <button id="undo">撤回</button>
+  </div>
+  <div id="history" class="math" style="font-size:16px"></div>
+  <div class="feedback" id="fb"></div>
+</div>
+<div class="back">做完回到对话里，说说你每一步对两边做了什么，为什么这样做。</div>
+<script>
+const P = /*__PARAMS__*/null;
+const v = P.variable;
+// Exact rationals as [num, den]; an equation side is {x: rational, c: rational}.
+const gcd = (a, b) => b ? gcd(b, a % b) : Math.abs(a);
+const R = (n, d = 1) => { if (d < 0) { n = -n; d = -d; } const g = gcd(n, d) || 1; return [n / g, d / g]; };
+const add = (a, b) => R(a[0] * b[1] + b[0] * a[1], a[1] * b[1]);
+const mul = (a, b) => R(a[0] * b[0], a[1] * b[1]);
+const neg = a => [-a[0], a[1]];
+const inv = a => R(a[1], a[0]);
+const isZero = a => a[0] === 0;
+const txt = a => a[1] === 1 ? String(a[0]) : `${a[0]}/${a[1]}`;
+function side(s) {
+  const parts = [];
+  if (!isZero(s.x)) parts.push((s.x[0] === s.x[1] ? '' : s.x[0] === -s.x[1] ? '-' : txt(s.x)) + v);
+  if (!isZero(s.c) || !parts.length) parts.push(txt(s.c));
+  return parts.join(' + ').replace('+ -', '- ').replace(/-/g, '−');
+}
+function parseTerm(raw) {
+  const t = raw.replace(/\s+/g, '').replace('−', '-');
+  const m = t.match(new RegExp(`^([-+]?)(\\d+(?:/\\d+)?)?(${v})?$`));
+  if (!m || (!m[2] && !m[3])) return null;
+  const sign = m[1] === '-' ? -1 : 1;
+  let q = m[2] ? (m[2].includes('/') ? R(...m[2].split('/').map(Number)) : R(Number(m[2]))) : R(1);
+  q = mul(q, R(sign));
+  return m[3] ? { x: q, c: R(0) } : { x: R(0), c: q };
+}
+let state = [{ L: { x: R(...P.left.x), c: R(...P.left.c) }, R: { x: R(...P.right.x), c: R(...P.right.c) }, note: '原方程' }];
+function render() {
+  const s = state[state.length - 1];
+  document.getElementById('left').textContent = side(s.L);
+  document.getElementById('right').textContent = side(s.R);
+  document.getElementById('history').innerHTML = state.map(e => `<div class="fade-in">${side(e.L)} = ${side(e.R)}　<span style="font-size:13px;color:#888">${e.note}</span></div>`).join('');
+  const solved = (isZero(s.L.c) && s.L.x[0] === s.L.x[1] && isZero(s.R.x)) || (isZero(s.R.c) && s.R.x[0] === s.R.x[1] && isZero(s.L.x));
+  const fb = document.getElementById('fb');
+  if (solved) { fb.className = 'feedback show good'; fb.textContent = `一边只剩下 ${v} 了。把这个值代回原方程，左右两边相等吗？`; }
+  document.getElementById('beam').style.transform = 'rotate(0deg)';
+}
+document.getElementById('apply').onclick = () => {
+  const fb = document.getElementById('fb'), op = document.getElementById('op').value;
+  const term = parseTerm(document.getElementById('val').value);
+  if (!term) { fb.className = 'feedback show try'; fb.textContent = `写一个数（如 20、-3、1/2）或一个 ${v} 的项（如 4${v}）。`; return; }
+  const s = state[state.length - 1], label = document.getElementById('op').selectedOptions[0].text + ' ' + document.getElementById('val').value.trim();
+  let L = { ...s.L }, Rt = { ...s.R };
+  if (op === 'add' || op === 'sub') {
+    const t = op === 'add' ? term : { x: neg(term.x), c: neg(term.c) };
+    L = { x: add(L.x, t.x), c: add(L.c, t.c) }; Rt = { x: add(Rt.x, t.x), c: add(Rt.c, t.c) };
+  } else {
+    if (!isZero(term.x)) { fb.className = 'feedback show try'; fb.textContent = `乘或除的时候用一个数，不用含 ${v} 的式子：除以含 ${v} 的式子可能会除以 0。`; return; }
+    if (isZero(term.c)) { fb.className = 'feedback show try'; fb.textContent = op === 'div' ? '不能除以 0。' : '两边都乘 0 会把方程弄没，换一个数。'; return; }
+    const k = op === 'mul' ? term.c : inv(term.c);
+    L = { x: mul(L.x, k), c: mul(L.c, k) }; Rt = { x: mul(Rt.x, k), c: mul(Rt.c, k) };
+  }
+  document.getElementById('beam').style.transform = 'rotate(4deg)';
+  setTimeout(() => { state.push({ L, R: Rt, note: '两边同时' + label }); fb.className = 'feedback show info'; fb.textContent = '两边做了同样的事，天平又平衡了。'; render(); }, 450);
+};
+document.getElementById('undo').onclick = () => { if (state.length > 1) { state.pop(); document.getElementById('fb').className = 'feedback'; render(); } };
+document.getElementById('title').textContent = P.title;
+render();
+</script>
+</body>
+</html>

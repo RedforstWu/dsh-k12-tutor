@@ -12,7 +12,7 @@ from pathlib import Path
 
 import yaml
 
-from . import subjects
+from . import activities, subjects
 
 ROOT = Path(__file__).resolve().parents[2]
 PLAYBOOKS = ROOT / "skills" / "tutor-mode" / "references" / "playbooks"
@@ -139,6 +139,8 @@ def kp_card(pack: subjects.Pack, kp_id: str, edition: str | None) -> str:
         lines.append("课标：" + "；".join(kp.curriculum))
     if kp.prerequisites:
         lines.append("前置知识：" + "，".join(f"{pack.kps[p].name}（{p}）" for p in kp.prerequisites if p in pack.kps))
+    for summary in kp.explanation_summary:
+        lines.append(f"- 讲解关键：{summary}")
     for mc_id in kp.misconceptions:
         mc = pack.misconceptions[mc_id]
         tag = "（证据弱，只作观察，不单独据此下结论）" if mc.level >= 5 else ""
@@ -235,6 +237,12 @@ def render(result: dict) -> str:
         cards = [kp_card(pack, kp_id, result.get("edition")) for kp_id in result["kp_ids"]]
         if cards:
             parts += ["", "## 知识点", *cards]
+    pick = activities.suggest(result["kp_ids"], task["playbook"]) if task["answer_policy"] != "refuse" else None
+    if pick:
+        variant = "，用变式题，不用作业原题" if task.get("assessment_context") == "homework" else ""
+        parts += ["", "## 互动网页（make_activity，然后 present）",
+                  f"这段任务做一个：{pick['what']}{variant}。在 playbook 提到互动网页的那一步做，做完请学生回来说结果。其他可选：",
+                  activities.catalog_for(result["kp_ids"], PRINCIPLES.parent / "activities.md")]
     if result["notes"]:
         parts += ["", "## 注意", *[f"- {n}" for n in result["notes"]]]
     return "\n".join(parts)

@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>不等式的解集</title><style>/*__BASE_CSS__*/</style></head>
+<body>
+<h1 id="title">在数轴上画出解集</h1>
+<p class="lead">不等式 <span class="math" id="ineq"></span></p>
+<div class="panel">
+  <div class="row">先试一个数：<input id="probe" type="text" placeholder="例如 -3"> <button id="test">代进去看看</button></div>
+  <div class="feedback" id="probeFb"></div>
+</div>
+<div class="panel">
+  <div class="row">分界点是 <input id="edge" type="text" placeholder="一个数">，
+    取 <select id="dir"><option value="">选择</option><option value="left">左边（小于）</option><option value="right">右边（大于）</option></select>，
+    分界点 <select id="dot"><option value="">选择</option><option value="open">不包含（空心）</option><option value="closed">包含（实心）</option></select>
+    <button class="primary" id="draw">画出来</button></div>
+  <svg id="line" width="640" height="110" viewBox="0 0 640 110"></svg>
+  <div class="feedback" id="fb"></div>
+</div>
+<div class="back">回到对话里说说：哪一步要改变不等号的方向？你是怎么确认的？</div>
+<script>
+const P = /*__PARAMS__*/null;
+const [a, b, c, d] = P.sides, op = P.op, v = P.variable;
+const holds = x => { const L = a * x + b, Rt = c * x + d; return op === '<' ? L < Rt : op === '<=' ? L <= Rt : op === '>' ? L > Rt : L >= Rt; };
+document.getElementById('title').textContent = P.title;
+document.getElementById('ineq').textContent = P.inequality;
+const svg = document.getElementById('line'), ns = 'http://www.w3.org/2000/svg';
+const lo = P.range[0], hi = P.range[1], X = x => 20 + (x - lo) / (hi - lo) * 600, Y = 55;
+const el = (tag, at, t) => { const e = document.createElementNS(ns, tag); for (const k in at) e.setAttribute(k, at[k]); if (t !== undefined) e.textContent = t; svg.appendChild(e); return e; };
+function axis() {
+  svg.innerHTML = '';
+  el('line', { x1: 20, y1: Y, x2: 620, y2: Y, stroke: '#555', 'stroke-width': 2 });
+  for (let x = Math.ceil(lo); x <= hi; x++) {
+    el('line', { x1: X(x), y1: Y - 5, x2: X(x), y2: Y + 5, stroke: '#888' });
+    el('text', { x: X(x), y: Y + 24, 'text-anchor': 'middle', 'font-size': 12, fill: '#555' }, String(x));
+  }
+}
+axis();
+const num = t => { t = t.trim().replace('−', '-'); return t.includes('/') ? t.split('/').reduce((p, q) => Number(p) / Number(q)) : Number(t); };
+document.getElementById('test').onclick = () => {
+  const x = num(document.getElementById('probe').value), fb = document.getElementById('probeFb');
+  if (Number.isNaN(x)) { fb.className = 'feedback show try'; fb.textContent = '写一个数。'; return; }
+  fb.className = 'feedback show info';
+  fb.textContent = `${v} = ${x} 代进去：左边 ${+(a * x + b).toFixed(4)}，右边 ${+(c * x + d).toFixed(4)}，不等式${holds(x) ? '成立' : '不成立'}。`;
+  el('circle', { cx: X(Math.max(lo, Math.min(hi, x))), cy: Y - 16, r: 4, fill: holds(x) ? '#27ae60' : '#c0392b' });
+};
+document.getElementById('draw').onclick = () => {
+  const e = num(document.getElementById('edge').value), dir = document.getElementById('dir').value, dot = document.getElementById('dot').value;
+  const fb = document.getElementById('fb');
+  if (Number.isNaN(e) || !dir || !dot) { fb.className = 'feedback show try'; fb.textContent = '分界点、方向、空心还是实心，三样都要选。'; return; }
+  axis();
+  const end = dir === 'left' ? 20 : 620;
+  el('line', { x1: X(e), y1: Y, x2: end, y2: Y, stroke: '#2a6fb0', 'stroke-width': 6, opacity: .8 });
+  el('circle', { cx: X(e), cy: Y, r: 7, fill: dot === 'closed' ? '#2a6fb0' : '#fff', stroke: '#2a6fb0', 'stroke-width': 3 });
+  const okEdge = Math.abs(e - P.edge) < 1e-9, okDir = dir === P.direction, okDot = dot === (P.inclusive ? 'closed' : 'open');
+  if (okEdge && okDir && okDot) { fb.className = 'feedback show good'; fb.textContent = '画对了！再挑一个在解集里的数和一个不在里面的数，上面代进去验证一下。'; return; }
+  fb.className = 'feedback show try';
+  fb.textContent = !okEdge ? '分界点还不对，回到解不等式的那几步检查一下。'
+    : !okDir ? '方向还不对。在你画的那一边挑一个数，用上面的"试一个数"代进去看看成不成立。'
+    : '分界点本身算不算解？把分界点代进原不等式试试。';
+};
+</script>
+</body>
+</html>

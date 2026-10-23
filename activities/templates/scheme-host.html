@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>互动练习</title><style>/*__BASE_CSS__*/
+html, body { height: 100%; } body { padding: 0; display: flex; flex-direction: column; }
+#frame { flex: 1; width: 100%; border: 0; min-height: 520px; }
+#status { padding: 10px 14px; background: #eef4fb; font-size: 14px; }
+#fallback { display: none; padding: 16px; white-space: pre-wrap; }
+</style></head>
+<body>
+<iframe id="frame" allow="autoplay; fullscreen"></iframe>
+<div id="fallback"></div>
+<div id="status">正在加载互动练习……</div>
+<script>
+const P = /*__PARAMS__*/null;
+// Host bridge for an interaction-scheme component on ai-view (the registry's web-embedding protocol):
+// wait for PageReady, then send the parameters; read onStatusChange codes against the scheme's outcomes.
+const frame = document.getElementById('frame'), status = document.getElementById('status');
+frame.src = 'https://ai-view.new.ndhy.com/view/' + encodeURIComponent(P.component);
+let ready = false;
+const said = { success: '答对了！回到对话里，跟老师说说你是怎么想的。', fail: '这次没全对。看看解析，再回到对话里和老师聊聊哪里想错了。',
+               partial: '对了一部分。回到对话里，和老师一起看看没对的那几题。', complete: '完成了！回到对话里说说你的体会。', exit: '已退出。' };
+window.addEventListener('message', event => {
+  if (event.source !== frame.contentWindow) return;
+  const m = event.data || {};
+  if (m.eventName === 'PageReady') {
+    ready = true;
+    frame.contentWindow.postMessage({ eventName: 'CommonData', data: { data: P.params } }, '*');
+    status.textContent = P.hint;
+    return;
+  }
+  if (m.eventName !== 'ActivityData' || !m.data) return;
+  if (m.data.eventName === 'onStatusChange' && ready) {
+    const code = m.data.data && m.data.data.UEStatus;
+    const outcome = P.outcomes.find(o => o.status === code);
+    document.body.dataset.status = String(code);
+    if (outcome && outcome.kind === 'graded') status.textContent = said[outcome.semantic] || outcome.message;
+  } else if (m.data.eventName === 'onError') {
+    status.textContent = '练习加载出错了，可以直接在对话里回答老师的问题。';
+  }
+});
+setTimeout(() => {
+  if (ready) return;
+  frame.style.display = 'none';
+  const fb = document.getElementById('fallback');
+  fb.style.display = 'block';
+  fb.textContent = '互动练习没有加载出来（可能没有联网）。题目是：\n\n' + P.fallback;
+  status.textContent = '把你的答案直接发到对话里就行。';
+}, 15000);
+</script>
+</body>
+</html>

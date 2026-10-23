@@ -1,0 +1,157 @@
+{
+ "schema": "k12-scheme-snapshot/1",
+ "id": "fill-keyboard",
+ "version": "0.3.0",
+ "name": "键盘填空",
+ "summary": "题干中用【正确值】标出 1～4 个数字或算式挖空，玩家点击空位后用数字、小数点或运算符虚拟键盘输入，提交一次后逐空显示对错与正确答案。",
+ "suitableFor": [
+  "节点可承载 1～4 个数字、小数或算式挖空",
+  "每个空只有一种可接受的输入写法，单位、百分号和中文量词写在空外",
+  "公式参数、运算过程或定量结果类填空"
+ ],
+ "notSuitableFor": [
+  "中文词语、文本术语或选词填空",
+  "排序、分类、连线匹配",
+  "同一个空存在多种等价写法且无法通过题干限定格式",
+  "需要在空内输入单位、百分号或中文量词"
+ ],
+ "components": {
+  "cartoon": "3ahDXL0Oh3tFAaR7Lu6Sv3Dv",
+  "retro-industrial": "16Q-si6qy3Tk7rh8q00dF8yu",
+  "urban-tech": "-En-vm5o33P3AqCAAB8-c9AQ"
+ },
+ "params": {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "fill-keyboard 参数",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+   "question"
+  ],
+  "properties": {
+   "title": {
+    "type": "string",
+    "pattern": "\\S",
+    "description": "弹窗顶部标题，选填；传入时不能为空白。"
+   },
+   "question": {
+    "type": "string",
+    "description": "题干。用【正确值】标出 1～4 个挖空，括号内即该空唯一的正确输入，只能包含所选键盘能键入的字符；括号外不得再出现【或】。可在首行写操作提示，与正文用换行分隔。"
+   },
+   "keyboard": {
+    "enum": [
+     "numeric",
+     "numeric-point",
+     "operators"
+    ],
+    "default": "numeric",
+    "description": "虚拟键盘类型，选填，缺省为 numeric。numeric：数字 0～9；numeric-point：数字与小数点；operators：数字、小数点与 + - × ÷。"
+   }
+  },
+  "allOf": [
+   {
+    "if": {
+     "properties": {
+      "keyboard": {
+       "const": "numeric"
+      }
+     }
+    },
+    "then": {
+     "properties": {
+      "question": {
+       "type": "string",
+       "pattern": "^[^【】]*(?:【[0-9]+】[^【】]*){1,4}$"
+      }
+     }
+    }
+   },
+   {
+    "if": {
+     "required": [
+      "keyboard"
+     ],
+     "properties": {
+      "keyboard": {
+       "const": "numeric-point"
+      }
+     }
+    },
+    "then": {
+     "properties": {
+      "question": {
+       "type": "string",
+       "pattern": "^[^【】]*(?:【[0-9.]+】[^【】]*){1,4}$"
+      }
+     }
+    }
+   },
+   {
+    "if": {
+     "required": [
+      "keyboard"
+     ],
+     "properties": {
+      "keyboard": {
+       "const": "operators"
+      }
+     }
+    },
+    "then": {
+     "properties": {
+      "question": {
+       "type": "string",
+       "pattern": "^[^【】]*(?:【[0-9.+×÷-]+】[^【】]*){1,4}$"
+      }
+     }
+    }
+   }
+  ]
+ },
+ "semanticRules": [
+  {
+   "id": "answer-unique-form",
+   "description": "每个【正确值】只能有一种可接受的写法（例如 10 与 10.0、6 与 6.00 不能都算对）；参考实现按字符逐一比较，需要通过题干限定单位、精度或答案形式，让每个空只剩一种正确输入。",
+   "check": null
+  }
+ ],
+ "outcomes": [
+  {
+   "status": 0,
+   "kind": "process",
+   "semantic": null,
+   "terminal": false,
+   "message": "ready",
+   "trigger": "组件收到有效参数并完成初始化"
+  },
+  {
+   "status": 1,
+   "kind": "graded",
+   "semantic": "success",
+   "terminal": true,
+   "message": "correct",
+   "trigger": "点击“提交”时每个空的输入都与该空【】内的正确值一致，玩家点击“继续”时上报"
+  },
+  {
+   "status": 2,
+   "kind": "graded",
+   "semantic": "fail",
+   "terminal": true,
+   "message": "wrong",
+   "trigger": "点击“提交”时至少一个空输入错误或未填写，玩家点击“继续”时上报"
+  },
+  {
+   "status": -1,
+   "kind": "graded",
+   "semantic": "exit",
+   "terminal": true,
+   "message": "exit",
+   "trigger": "组件请求退出且退出前约 100 毫秒内未上报状态时由 ai-view 补发；本组件从不请求退出，不会出现"
+  }
+ ],
+ "sample": {
+  "question": "请填入正确答案\n一个长方体容器，从里面量长20厘米，宽15厘米，里面装有水，水深8厘米。现在将一个体积为900立方厘米的铁块完全浸没在水中（水未溢出）。此时，水面会上升【3】厘米，上升后的水深为【11】厘米，容器内水的体积是【2400】立方厘米。",
+  "keyboard": "numeric"
+ },
+ "source": "https://interaction-scheme-hub.sdp.ndaeweb.com/api/v1/schemes/fill-keyboard/versions/0.3.0"
+}

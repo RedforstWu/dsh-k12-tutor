@@ -1,0 +1,183 @@
+{
+ "schema": "k12-scheme-snapshot/1",
+ "id": "judge-button",
+ "version": "0.3.0",
+ "name": "按钮判断",
+ "summary": "弹窗逐题展示文字或图片陈述，玩家点击“错误”或“正确”按钮作答，每题显示对错与正确答案，全部答完按全部答对、全部答错、部分答对给出结果。",
+ "suitableFor": [
+  "节点需要 1～20 道正误判断题，每题只有一个判断点",
+  "题干可由文字、图片或两者共同呈现",
+  "辨析事实、规则、例外或常见错误认知，并希望每题作答后展示正确答案"
+ ],
+ "notSuitableFor": [
+  "排序、填空、计算、匹配",
+  "最佳答案选择、程度判断、多选",
+  "把概念识别或归类硬写成“是不是某概念”“是否符合某描述”的问法",
+  "需要角色对白或旁白的叙事节点"
+ ],
+ "components": {
+  "cartoon": "8Wd5KF4Nd3kU8tdCyr43i93u",
+  "retro-industrial": "AIl7Lk1a-3pw8_GDvQBlp7O1",
+  "urban-tech": "-KS8v_DUl3KM9g3-kV0fp6XX"
+ },
+ "params": {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "judge-button 参数",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+   "question",
+   "questions"
+  ],
+  "properties": {
+   "title": {
+    "type": "string",
+    "description": "弹窗标题，选填；显示在题干上方。"
+   },
+   "question": {
+    "type": "string",
+    "pattern": "\\S",
+    "description": "判断题组的题干正文，必须含非空白字符。"
+   },
+   "completionDelayMs": {
+    "type": "number",
+    "minimum": 0,
+    "deprecated": true,
+    "description": "历史兼容字段，选填。组件只校验它是非负数，不使用它；完成后由玩家点击“继续”结束。"
+   },
+   "questions": {
+    "type": "array",
+    "minItems": 1,
+    "maxItems": 20,
+    "description": "判断题，按数组顺序逐题展示。",
+    "items": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "answer"
+     ],
+     "properties": {
+      "text": {
+       "type": "string",
+       "description": "判断陈述，选填；与 img 至少一项非空。"
+      },
+      "img": {
+       "type": "string",
+       "pattern": "^$|\\S",
+       "description": "题图地址，选填；无图时填空字符串，不能填 null 或纯空白。与 text 至少一项非空。",
+       "x-asset-slot": "questionImage"
+      },
+      "answer": {
+       "enum": [
+        "正确",
+        "错误"
+       ],
+       "description": "该陈述的标准答案，只能是“正确”或“错误”。"
+      }
+     },
+     "anyOf": [
+      {
+       "required": [
+        "text"
+       ],
+       "properties": {
+        "text": {
+         "type": "string",
+         "pattern": "\\S"
+        }
+       }
+      },
+      {
+       "required": [
+        "img"
+       ],
+       "properties": {
+        "img": {
+         "type": "string",
+         "pattern": "\\S"
+        }
+       }
+      }
+     ]
+    }
+   }
+  }
+ },
+ "semanticRules": [
+  {
+   "id": "single-judgement-point",
+   "description": "每道题只含一个可判真假的判断点；多个条件混在一句里会出现半对半错，应拆题或改写。",
+   "check": null
+  },
+  {
+   "id": "no-answer-leak",
+   "description": "questions[].text 与题图不得泄露答案：不得出现“正确/错误”字样、答案括号、对勾、叉号或红绿判定。",
+   "check": null
+  }
+ ],
+ "outcomes": [
+  {
+   "status": 0,
+   "kind": "process",
+   "semantic": null,
+   "terminal": false,
+   "message": "ready",
+   "trigger": "组件收到有效参数并完成初始化"
+  },
+  {
+   "status": 1,
+   "kind": "graded",
+   "semantic": "success",
+   "terminal": true,
+   "message": "all_correct",
+   "trigger": "全部题目作答完毕且每题都判断正确，玩家在完成页点击“继续”"
+  },
+  {
+   "status": 2,
+   "kind": "graded",
+   "semantic": "fail",
+   "terminal": true,
+   "message": "all_wrong",
+   "trigger": "全部题目作答完毕且答对数为 0，玩家在完成页点击“继续”"
+  },
+  {
+   "status": 3,
+   "kind": "graded",
+   "semantic": "partial",
+   "terminal": true,
+   "message": "partial_correct",
+   "trigger": "全部题目作答完毕且答对数大于 0、小于题目总数，玩家在完成页点击“继续”"
+  },
+  {
+   "status": -1,
+   "kind": "graded",
+   "semantic": "exit",
+   "terminal": true,
+   "message": "exit",
+   "trigger": "组件请求退出且退出前约 100 毫秒内未上报状态时由 ai-view 补发；本组件总是先上报结果再请求退出，正常流程不会出现"
+  }
+ ],
+ "sample": {
+  "title": "判断练习",
+  "question": "请判断以下说法是否正确",
+  "completionDelayMs": 2000,
+  "questions": [
+   {
+    "text": "橡皮泥挤压发生形变",
+    "img": "",
+    "answer": "错误"
+   },
+   {
+    "text": "用手按弹簧，弹簧产生形变的力就是弹力",
+    "img": "https://img0.baidu.com/it/u=3097612138,58988988&fm=253&fmt=auto&app=138&f=JPEG?w=400&h=400",
+    "answer": "正确"
+   },
+   {
+    "text": "",
+    "img": "https://t10.baidu.com/it/u=1926281935,263506505&fm=30&app=106&f=JPEG?w=640&h=839&s=79843D76455362645E7C166E0200A074",
+    "answer": "正确"
+   }
+  ]
+ },
+ "source": "https://interaction-scheme-hub.sdp.ndaeweb.com/api/v1/schemes/judge-button/versions/0.3.0"
+}

@@ -1,0 +1,163 @@
+{
+ "schema": "k12-scheme-snapshot/1",
+ "id": "choice-text.text-single",
+ "version": "0.3.0",
+ "name": "文本单选（文本选项）",
+ "summary": "玩家阅读一道文字题干，从 2～4 个文字选项中点选唯一最佳答案；点选 0.5 秒后判定并显示正确答案与解析，玩家点击“继续”时上报正误。",
+ "suitableFor": [
+  "节点只承载一道文本单选题，题干和选项都以文字为主",
+  "选项 2～4 个，且只有一个明确最佳答案",
+  "辨识区分、择优选择、干扰辨析或知识掌握检测"
+ ],
+ "notSuitableFor": [
+  "一个节点内有多道题",
+  "存在多个正确答案",
+  "排序、分类、填空、计算",
+  "题干依赖图片或音频",
+  "选项依赖图片",
+  "所有候选都合法、只用于决定后续路线的中性选择"
+ ],
+ "components": {
+  "cartoon": "1Ba4eX-4R3asAk_Dz7C2l05Z",
+  "retro-industrial": "A69CbiBtX3SV8iu0SF4TJ8vZ",
+  "urban-tech": "2V05lBCJe3HX8Z73_98HXBD_"
+ },
+ "params": {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "choice-text.text-single 参数",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+   "question",
+   "options",
+   "answer"
+  ],
+  "properties": {
+   "title": {
+    "type": "string",
+    "pattern": "\\S",
+    "description": "弹窗顶部标题，选填；传入时不能为空白。"
+   },
+   "question": {
+    "type": "string",
+    "pattern": "\\S",
+    "description": "题目内容，只承载一道题，清晰描述题目情境和答题要求。"
+   },
+   "options": {
+    "type": "array",
+    "minItems": 2,
+    "maxItems": 4,
+    "description": "文本选项，按数组顺序展示。每项为字符串（如 \"A. 选项文案\"）或对象 { label, text }，推荐对象格式。",
+    "items": {
+     "type": [
+      "string",
+      "object"
+     ],
+     "description": "字符串格式必须以单个大写字母加分隔符（. 、 :）开头，后接单行文案；对象格式见 label、text。",
+     "pattern": "^[A-Z][.、:]\\s*[^\\s][^\\n\\r\\u2028\\u2029]*$",
+     "additionalProperties": false,
+     "required": [
+      "label",
+      "text"
+     ],
+     "properties": {
+      "label": {
+       "type": "string",
+       "pattern": "^[A-Z]$",
+       "description": "选项字母标识，单个大写字母。"
+      },
+      "text": {
+       "type": "string",
+       "pattern": "\\S",
+       "description": "选项文案。"
+      }
+     }
+    }
+   },
+   "answer": {
+    "type": "string",
+    "pattern": "^[A-Z]$",
+    "description": "正确选项的字母标识，单个大写字母，必须与某个选项的标识一致。"
+   },
+   "explanation": {
+    "type": "string",
+    "description": "答案解析，选填；判定后无论对错都会显示，无解析时可留空字符串。"
+   }
+  }
+ },
+ "semanticRules": [
+  {
+   "id": "option-label-unique",
+   "description": "各选项的字母标识互不重复。对象格式由 validate 自动检查 options[].label；字符串格式需人工核对开头字母。",
+   "check": {
+    "type": "unique",
+    "path": "options[].label"
+   }
+  },
+  {
+   "id": "option-text-unique",
+   "description": "各选项文案互不重复。对象格式由 validate 自动检查 options[].text；字符串格式需人工核对。",
+   "check": {
+    "type": "unique",
+    "path": "options[].text"
+   }
+  },
+  {
+   "id": "answer-matches-option",
+   "description": "answer 必须等于某个选项的字母标识（对象格式取 label，字符串格式取开头字母），否则组件停在等待页。",
+   "check": null
+  },
+  {
+   "id": "single-best-answer",
+   "description": "题目只有一个明确最佳答案，干扰项不能与正确答案同时成立。",
+   "check": null
+  }
+ ],
+ "outcomes": [
+  {
+   "status": 0,
+   "kind": "process",
+   "semantic": null,
+   "terminal": false,
+   "message": "ready",
+   "trigger": "组件收到有效参数并完成初始化"
+  },
+  {
+   "status": 1,
+   "kind": "graded",
+   "semantic": "success",
+   "terminal": true,
+   "message": "correct",
+   "trigger": "玩家点选的选项在 0.5 秒后判定为 answer 对应的选项，玩家查看答案后点击“继续”"
+  },
+  {
+   "status": 2,
+   "kind": "graded",
+   "semantic": "fail",
+   "terminal": true,
+   "message": "wrong",
+   "trigger": "玩家点选的选项在 0.5 秒后判定为非 answer 选项，玩家查看答案后点击“继续”"
+  },
+  {
+   "status": -1,
+   "kind": "graded",
+   "semantic": "exit",
+   "terminal": true,
+   "message": "exit",
+   "trigger": "组件请求退出且退出前约 100 毫秒内未上报状态时由 ai-view 补发；本组件从不请求退出，不会出现"
+  }
+ ],
+ "sample": {
+  "title": "选择最恰当的一项",
+  "question": "虽然老师在课堂上反复强调了审题的重要性，并举了许多因粗心大意而失分的例子，但小明在完成数学试卷时，依然_______地将一道简单的计算题中的‘除’看成了‘除以’，导致整道大题一分未得。事后他非常后悔，意识到自己必须改掉这个坏毛病。",
+  "options": [
+   "A. 一如既往",
+   "B. 无独有偶",
+   "C. 明知故犯",
+   "D. 重蹈覆辙"
+  ],
+  "answer": "C",
+  "explanation": "句中强调“老师提醒过 + 小明依然犯错”这一明知道理却故意（或放任自己）犯错的情景，因此明知故犯最恰当。"
+ },
+ "source": "https://interaction-scheme-hub.sdp.ndaeweb.com/api/v1/schemes/choice-text.text-single/versions/0.3.0"
+}

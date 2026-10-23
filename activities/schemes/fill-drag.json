@@ -1,0 +1,122 @@
+{
+ "schema": "k12-scheme-snapshot/1",
+ "id": "fill-drag",
+ "version": "0.3.0",
+ "name": "拖拽填空",
+ "summary": "题干中用【正确词】标出 1～5 个挖空，玩家从正答与干扰项混合打乱的词库中点选或拖拽词条填入，填满后提交一次，逐空显示对错。",
+ "suitableFor": [
+  "节点可承载 1～5 个文本词语或短语挖空",
+  "每个空能由题干上下文唯一定位，正答写在【正确词】内，干扰项单独给出",
+  "术语、概念、关键词或句意理解类填空"
+ ],
+ "notSuitableFor": [
+  "纯数值、小数或算式输入",
+  "排序、分类、连线匹配",
+  "同一个词能填多个空，或多个近义词都成立的任务",
+  "需要玩家自由输入答案的任务"
+ ],
+ "components": {
+  "cartoon": "1Te9y_2y13DJ8fq049Bk72sr",
+  "retro-industrial": "6GS0uhBvl3wQATZBzq0Ia85R",
+  "urban-tech": "AU3-JIDk93Mv7uB7VMEI2Evl"
+ },
+ "params": {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "fill-drag 参数",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+   "question"
+  ],
+  "properties": {
+   "title": {
+    "type": "string",
+    "pattern": "\\S",
+    "description": "弹窗顶部标题，选填；传入时不能为空白。"
+   },
+   "question": {
+    "type": "string",
+    "pattern": "^[^【】]*(?:【[^【】]*[^【】\\s][^【】]*】[^【】]*){1,5}$",
+    "description": "题干。用【正确词】标出 1～5 个挖空，括号内文字即该空的正答（首尾空白会被去掉）；括号外不得再出现【或】。"
+   },
+   "options": {
+    "type": "array",
+    "description": "干扰项列表，选填。组件把题干中的全部正答与 options 合并去重后随机打乱，作为词库展示。",
+    "items": {
+     "type": "string",
+     "pattern": "\\S"
+    }
+   }
+  }
+ },
+ "semanticRules": [
+  {
+   "id": "option-unique",
+   "description": "options 中的干扰项不得重复。",
+   "check": {
+    "type": "unique",
+    "path": "options[]"
+   }
+  },
+  {
+   "id": "blank-answer-unique",
+   "description": "题干中各个【】内的正答互不相同；正答重复时词库只保留一个词条，后一个空无法再填入同一个词，只能判错。",
+   "check": null
+  },
+  {
+   "id": "options-exclude-answers",
+   "description": "options 只放干扰项，不得包含题干【】内的任何正答，也不得包含与正答可互换的近义词。",
+   "check": null
+  },
+  {
+   "id": "blank-context-exclusive",
+   "description": "空位互斥：词库（全部正答加 options）中任一词代入任一空试读，只有该空的正答成立；不允许两个空的正答互换后仍然通顺。",
+   "check": null
+  }
+ ],
+ "outcomes": [
+  {
+   "status": 0,
+   "kind": "process",
+   "semantic": null,
+   "terminal": false,
+   "message": "ready",
+   "trigger": "组件收到有效参数并完成初始化"
+  },
+  {
+   "status": 1,
+   "kind": "graded",
+   "semantic": "success",
+   "terminal": true,
+   "message": "correct",
+   "trigger": "全部空位填满并点击“提交”后每个空都等于题干【】内的正答，玩家点击“继续”时上报"
+  },
+  {
+   "status": 2,
+   "kind": "graded",
+   "semantic": "fail",
+   "terminal": true,
+   "message": "wrong",
+   "trigger": "全部空位填满并点击“提交”后至少一个空填错，玩家点击“继续”时上报"
+  },
+  {
+   "status": -1,
+   "kind": "graded",
+   "semantic": "exit",
+   "terminal": true,
+   "message": "exit",
+   "trigger": "组件请求退出且退出前约 100 毫秒内未上报状态时由 ai-view 补发；本组件从不请求退出，不会出现"
+  }
+ ],
+ "sample": {
+  "title": "生物：生态系统成分",
+  "question": "在生态系统中，【栖息地】为生物提供生存环境，【生产者】是能量流动的起点，【分解者】促进物质循环，【消费者】维持物种平衡，【生物多样性】则是生态稳定的重要标志。",
+  "options": [
+   "非生物环境",
+   "捕食者",
+   "初级生产量",
+   "食物网"
+  ]
+ },
+ "source": "https://interaction-scheme-hub.sdp.ndaeweb.com/api/v1/schemes/fill-drag/versions/0.3.0"
+}

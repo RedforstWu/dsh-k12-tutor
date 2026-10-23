@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>两个数相乘等于 0</title><style>/*__BASE_CSS__*/</style></head>
+<body>
+<h1 id="title">找全方程的根</h1>
+<p class="lead">方程 <span class="math" id="eq"></span>。把你求出的根填进来，逗号隔开（例如 1, -3）。</p>
+<div class="panel">
+  <div class="row">我求出的根：<input id="roots" type="text" style="width:12em"> <button class="primary" id="check">检验</button></div>
+  <div class="feedback" id="fb"></div>
+  <svg id="plot" width="380" height="300" viewBox="0 0 380 300" style="display:none"></svg>
+  <div class="feedback" id="graphNote"></div>
+</div>
+<div class="back">回到对话里告诉老师：这个方程有几个根？如果一开始少了一个，是哪一步把它弄丢的？</div>
+<script>
+const P = /*__PARAMS__*/null;
+const [a, b, c] = P.coefficients, v = P.variable;
+const f = x => a * x * x + b * x + c;
+document.getElementById('title').textContent = P.title;
+document.getElementById('eq').textContent = P.equation;
+function graph(found) {
+  const svg = document.getElementById('plot'), ns = 'http://www.w3.org/2000/svg';
+  svg.style.display = 'block'; svg.innerHTML = '';
+  const xs = P.roots.concat(found), lo = Math.min(...xs, -1) - 2, hi = Math.max(...xs, 1) + 2;
+  let ymin = Infinity, ymax = -Infinity;
+  for (let i = 0; i <= 200; i++) { const x = lo + (hi - lo) * i / 200, y = f(x); ymin = Math.min(ymin, y); ymax = Math.max(ymax, y); }
+  ymin = Math.min(ymin, -1); ymax = Math.max(ymax, 1);
+  const X = x => 20 + (x - lo) / (hi - lo) * 340, Y = y => 280 - (y - ymin) / (ymax - ymin) * 260;
+  const el = (tag, at) => { const e = document.createElementNS(ns, tag); for (const k in at) e.setAttribute(k, at[k]); svg.appendChild(e); return e; };
+  el('line', { x1: 20, y1: Y(0), x2: 360, y2: Y(0), stroke: '#999' });
+  if (lo < 0 && hi > 0) el('line', { x1: X(0), y1: 10, x2: X(0), y2: 290, stroke: '#999' });
+  let d = '';
+  for (let i = 0; i <= 200; i++) { const x = lo + (hi - lo) * i / 200; d += (i ? ' L ' : 'M ') + X(x).toFixed(1) + ' ' + Y(f(x)).toFixed(1); }
+  const path = el('path', { d, fill: 'none', stroke: '#2a6fb0', 'stroke-width': 2.5 });
+  path.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 700, fill: 'forwards' });
+  for (const r of P.roots) {
+    const got = found.some(x => Math.abs(x - r) < 1e-9);
+    el('circle', { cx: X(r), cy: Y(0), r: 7, fill: got ? '#27ae60' : 'none', stroke: got ? '#27ae60' : '#c0392b', 'stroke-width': 3 });
+  }
+}
+document.getElementById('check').onclick = () => {
+  const fb = document.getElementById('fb'), note = document.getElementById('graphNote');
+  const raw = document.getElementById('roots').value.replace(/[，、\s]+/g, ',').replace(/−/g, '-').split(',').filter(Boolean);
+  const nums = raw.map(t => t.includes('/') ? t.split('/').reduce((p, q) => Number(p) / Number(q)) : Number(t));
+  if (!nums.length || nums.some(Number.isNaN)) { fb.className = 'feedback show try'; fb.textContent = '写出数字，例如 2, -1。'; return; }
+  const lines = nums.map(x => `${v} = ${raw[nums.indexOf(x)]} 代回去：左边 = ${+f(x).toFixed(6)}，${Math.abs(f(x)) < 1e-9 ? '是根' : '不是根'}`);
+  const good = nums.filter(x => Math.abs(f(x)) < 1e-9);
+  const missing = P.roots.filter(r => !good.some(x => Math.abs(x - r) < 1e-9));
+  fb.className = 'feedback show ' + (missing.length || good.length < nums.length ? 'try' : 'good');
+  fb.innerHTML = lines.join('<br>');
+  graph(good);
+  note.className = 'feedback show info';
+  note.textContent = missing.length
+    ? `图象和 x 轴有 ${P.roots.length} 个交点（圆圈），你找到了 ${good.length} 个。红圈那里还有一个根。想一想：两边能不能直接除以一个含 ${v} 的式子？`
+    : `图象和 x 轴的交点（绿点）正好是你找到的根。${P.roots.length} 个都找全了。`;
+};
+</script>
+</body>
+</html>

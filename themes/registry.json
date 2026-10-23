@@ -1,0 +1,33 @@
+{
+  "classic": {
+    "name": "经典课堂",
+    "defaultCharacterId": "none",
+    "tokens": {"background": "#fbfaf6", "surface": "#ffffff", "ink": "#222222", "muted": "#555555", "border": "#c9c5b8", "button": "#eef4fb", "accent": "#2a6fb0"},
+    "resourceLabel": "资源站",
+    "contexts": {}
+  },
+  "voxel-builder": {
+    "name": "方块建造",
+    "defaultCharacterId": "mira",
+    "tokens": {"background": "#eff5e9", "surface": "#ffffff", "ink": "#243525", "muted": "#465948", "border": "#94ab84", "button": "#e0edce", "accent": "#356638"},
+    "resourceLabel": "建造资源站",
+    "contexts": {
+      "linear-eq-solve": "比较两处建造资源站的初始储量与每分钟增长量，以相同时间建立等量关系。",
+      "equation-concept": "两处建造资源站在同一时刻储量相同，预测并写出等量关系。",
+      "rational-number-line": "沿建造地图的数轴移动，用方向和距离表示数。",
+      "linear-function-concept": "观察建造资源随时间的变化，分清初始量和增长率。"
+    }
+  },
+  "space-explorer": {
+    "name": "星际探索",
+    "defaultCharacterId": "orbit",
+    "tokens": {"background": "#edf1fa", "surface": "#ffffff", "ink": "#202c47", "muted": "#435476", "border": "#99acd0", "button": "#e0e9fa", "accent": "#3e548d"},
+    "resourceLabel": "探索补给站",
+    "contexts": {
+      "linear-eq-solve": "比较两个探索补给站的初始储量与每分钟增长量，以相同时间建立等量关系。",
+      "equation-concept": "两个探索补给站在同一时刻储量相同，预测并写出等量关系。",
+      "rational-number-line": "沿探测航线的数轴移动，用方向和距离表示数。",
+      "linear-function-concept": "观察探索补给随时间的变化，分清初始量和增长率。"
+    }
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "none": {"name": "不显示角色", "states": {}},
+  "mira": {"name": "米拉", "description": "AI 学习导师，原创几何形象", "states": {"listening": "mira-listening.svg", "thinking": "mira-thinking.svg", "encouraging": "mira-encouraging.svg"}},
+  "orbit": {"name": "小轨", "description": "AI 学习导师，原创几何形象", "states": {"listening": "orbit-listening.svg", "thinking": "orbit-thinking.svg", "encouraging": "orbit-encouraging.svg"}}
+}

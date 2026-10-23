@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>数轴上走一走</title><style>/*__BASE_CSS__*/</style></head>
+<body>
+<h1 id="title">数轴上走一走</h1>
+<p class="lead" id="question"></p>
+<div class="panel">
+  <div class="row">先猜一猜：结果是 <input id="guess" type="text" inputmode="numeric" placeholder="写一个数"> <button class="primary" id="go">在数轴上走一遍</button></div>
+  <svg id="line" width="640" height="150" viewBox="0 0 640 150"></svg>
+  <div class="feedback" id="fb"></div>
+</div>
+<div class="back">走完以后，回到对话里，用一句话告诉老师：往哪边走、走了几格、为什么。</div>
+<script>
+const P = /*__PARAMS__*/null;
+const svg = document.getElementById('line'), ns = 'http://www.w3.org/2000/svg';
+const lo = P.range[0], hi = P.range[1], W = 600, X0 = 20, unit = W / (hi - lo), Y = 95;
+const px = v => X0 + (v - lo) * unit;
+const el = (tag, attrs, text) => { const e = document.createElementNS(ns, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (text !== undefined) e.textContent = text; svg.appendChild(e); return e; };
+document.getElementById('title').textContent = P.title;
+document.getElementById('question').textContent = P.question;
+function axis() {
+  svg.innerHTML = '';
+  el('line', { x1: X0, y1: Y, x2: X0 + W, y2: Y, stroke: '#555', 'stroke-width': 2 });
+  const step = (hi - lo) > 30 ? 5 : (hi - lo) > 16 ? 2 : 1;
+  for (let v = lo; v <= hi; v++) {
+    const big = v % step === 0;
+    el('line', { x1: px(v), y1: Y - (big ? 7 : 4), x2: px(v), y2: Y + (big ? 7 : 4), stroke: v === 0 ? '#000' : '#888' });
+    if (big) el('text', { x: px(v), y: Y + 26, 'text-anchor': 'middle', 'font-size': 13, fill: v === 0 ? '#000' : '#555' }, String(v));
+  }
+  el('circle', { cx: px(P.start), cy: Y, r: 7, fill: '#2a6fb0' });
+  el('text', { x: px(P.start), y: Y - 14, 'text-anchor': 'middle', 'font-size': 13, fill: '#2a6fb0' }, '起点 ' + P.start);
+}
+function arc(from, to, k) {
+  const mid = (px(from) + px(to)) / 2, h = 30 + 8 * k;
+  const path = el('path', { d: `M ${px(from)} ${Y} Q ${mid} ${Y - h * 2} ${px(to)} ${Y}`, fill: 'none',
+    stroke: to > from ? '#27ae60' : '#c0392b', 'stroke-width': 3, 'stroke-dasharray': 600, 'stroke-dashoffset': 600 });
+  path.animate([{ strokeDashoffset: 600 }, { strokeDashoffset: 0 }], { duration: 900, fill: 'forwards' });
+  const label = (to > from ? '向右 ' : '向左 ') + Math.abs(to - from) + ' 格';
+  setTimeout(() => el('text', { x: mid, y: Y - h - 6, 'text-anchor': 'middle', 'font-size': 13, fill: to > from ? '#27ae60' : '#c0392b' }, label), 600);
+}
+axis();
+document.getElementById('go').onclick = () => {
+  const raw = document.getElementById('guess').value.trim().replace('−', '-');
+  const fb = document.getElementById('fb');
+  if (!/^[-+]?\d+$/.test(raw)) { fb.className = 'feedback show try'; fb.textContent = '先写一个整数作为你的猜测，再走一遍看看。'; return; }
+  document.getElementById('go').disabled = true;
+  axis();
+  let at = P.start;
+  P.moves.forEach((m, i) => setTimeout(() => { arc(at, at + m, i); at += m; }, i * 1100));
+  setTimeout(() => {
+    el('circle', { cx: px(P.result), cy: Y, r: 8, fill: '#c0392b' });
+    el('text', { x: px(P.result), y: Y + 46, 'text-anchor': 'middle', 'font-size': 14, fill: '#c0392b' }, '终点 ' + P.result);
+    const right = Number(raw) === P.result;
+    fb.className = 'feedback show ' + (right ? 'good' : 'try');
+    fb.textContent = right ? `猜对了，终点就是 ${P.result}。` : `你猜的是 ${raw}，实际走到了 ${P.result}。看看是哪一步方向或格数和你想的不一样。`;
+    document.getElementById('go').disabled = false;
+  }, P.moves.length * 1100 + 300);
+};
+</script>
+</body>
+</html>

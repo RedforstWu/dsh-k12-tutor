@@ -11,6 +11,7 @@ import sys
 import traceback
 
 from . import ops
+from .study_transport import request_credentials
 
 
 def handle(line: str) -> dict:
@@ -19,6 +20,7 @@ def handle(line: str) -> dict:
     except json.JSONDecodeError as exc:
         return {"id": None, "ok": False, "error": f"bad request: {exc}"}
     rid = request.get("id")
+    credential_context = request_credentials.set(request.get("transportContext"))
     try:
         return {"id": rid, "ok": True, "value": ops.dispatch(request.get("op"), request.get("args") or {})}
     except ops.OpError as exc:
@@ -27,6 +29,8 @@ def handle(line: str) -> dict:
         traceback.print_exc(file=sys.stderr)
         return {"id": rid, "ok": False, "error": f"{type(exc).__name__}: {exc}"}
 
+    finally:
+        request_credentials.reset(credential_context)
 
 def serve() -> None:
     for line in sys.stdin:

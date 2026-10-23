@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>分步讲解</title><style>/*__BASE_CSS__*/
+.stage { min-height: 220px; }
+.line { padding: 6px 10px; margin: 4px 0; border-radius: 8px; color: #999; transition: all .4s; }
+.line.now { color: #222; background: #eef4fb; font-size: 22px; }
+.line.done { color: #666; }
+.say { font-size: 16px; color: #333; min-height: 3em; margin: 10px 0; }
+.mark { background: #ffe9a8; border-radius: 4px; padding: 0 3px; }
+.dots span { display: inline-block; width: 9px; height: 9px; margin: 0 3px; border-radius: 50%; background: #ddd; }
+.dots span.on { background: #2a6fb0; }
+</style></head>
+<body>
+<h1 id="title">分步讲解</h1>
+<div class="panel stage">
+  <div id="lines"></div>
+  <div class="say fade-in" id="say"></div>
+</div>
+<div class="row"><button id="prev">上一步</button> <button class="primary" id="next">下一步</button> <span class="dots" id="dots"></span></div>
+<div class="back" id="end" style="display:none"></div>
+<script>
+const P = /*__PARAMS__*/null;
+let i = 0;
+const esc = s => s.replace(/[&<>]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[ch]));
+// [[...]] marks the part of a line to highlight in that step.
+const fmt = s => esc(s).replace(/\[\[(.+?)\]\]/g, '<span class="mark">$1</span>');
+function render() {
+  document.getElementById('title').textContent = P.title;
+  document.getElementById('lines').innerHTML = P.steps.slice(0, i + 1).map((s, k) =>
+    s.show ? `<div class="line math ${k === i ? 'now fade-in' : 'done'}">${k === i ? fmt(s.show) : esc(s.show.replace(/\[\[|\]\]/g, ''))}</div>` : '').join('');
+  const say = document.getElementById('say');
+  say.classList.remove('fade-in'); void say.offsetWidth; say.classList.add('fade-in');
+  say.innerHTML = fmt(P.steps[i].say);
+  document.getElementById('dots').innerHTML = P.steps.map((_, k) => `<span class="${k <= i ? 'on' : ''}"></span>`).join('');
+  document.getElementById('prev').disabled = i === 0;
+  document.getElementById('next').disabled = i === P.steps.length - 1;
+  const end = document.getElementById('end');
+  end.style.display = i === P.steps.length - 1 ? 'block' : 'none';
+  end.textContent = P.ending;
+}
+document.getElementById('next').onclick = () => { if (i < P.steps.length - 1) { i += 1; render(); } };
+document.getElementById('prev').onclick = () => { if (i > 0) { i -= 1; render(); } };
+render();
+</script>
+</body>
+</html>

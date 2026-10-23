@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>两站资源比较</title><style>/*__BASE_CSS__*/
+.stores{display:grid;grid-template-columns:1fr 1fr;gap:12px}.store{padding:12px;border:1px solid var(--border);border-radius:8px}.amount{font-size:26px;font-variant-numeric:tabular-nums}.bar{height:20px;background:var(--accent);max-width:100%}textarea{width:100%;font:inherit;padding:8px;background:var(--surface);color:var(--ink);border:1px solid var(--border);border-radius:6px}input[type=range]{width:min(100%,420px)}[hidden]{display:none!important}@media(max-width:420px){.stores{grid-template-columns:1fr}}
+</style></head>
+<body>
+<h1 id="title">两站资源何时相同</h1>
+<p class="lead">__RESOURCE_LABEL__ · 原创教学模拟</p>
+<div class="panel">
+  <div class="stores">
+    <div class="store">A 站<p>初始 20 单位，每分钟增加 3 单位</p></div>
+    <div class="store">B 站<p>初始 5 单位，每分钟增加 6 单位</p></div>
+  </div>
+  <label for="prediction">先预测：两站的资源可能在什么时候相同？说说你的想法。</label>
+  <textarea id="prediction" rows="2"></textarea>
+  <button class="primary" id="observe" disabled>开始观察</button>
+</div>
+<section class="panel" id="observation" hidden aria-label="操作观察">
+  <label for="time">时间 <output id="time-label">0</output> 分钟</label>
+  <div><input id="time" type="range" min="0" max="10" step="1" value="0"></div>
+  <div class="stores" aria-live="polite">
+    <div class="store">A 站 <output class="amount" id="amount-a"></output> 单位<div class="bar" id="bar-a"></div></div>
+    <div class="store">B 站 <output class="amount" id="amount-b"></output> 单位<div class="bar" id="bar-b"></div></div>
+  </div>
+  <label for="relation">用 t 表示分钟数，写出两站资源相同时的等量关系。</label>
+  <textarea id="relation" rows="2" placeholder="写下你的等量关系"></textarea>
+</section>
+<div class="back">把预测、观察和等量关系带回对话，请导师验算。再试一道不带情境的同类题。本页操作不会自动记为成绩。</div>
+<script>
+const P = /*__PARAMS__*/null;
+document.getElementById('title').textContent = P.title;
+const prediction = document.getElementById('prediction'), observe = document.getElementById('observe');
+const time = document.getElementById('time');
+prediction.addEventListener('input', () => { observe.disabled = !prediction.value.trim(); });
+function draw() {
+  const t = Number(time.value);
+  document.getElementById('time-label').textContent = t;
+  ['a','b'].forEach((id, i) => {
+    const amount = P.initial[i] + P.rates[i] * t;
+    document.getElementById('amount-' + id).textContent = amount;
+    document.getElementById('bar-' + id).style.width = (amount / 65 * 100) + '%';
+  });
+}
+observe.addEventListener('click', () => { document.getElementById('observation').hidden = false; draw(); });
+time.addEventListener('input', draw);
+</script>
+</body></html>

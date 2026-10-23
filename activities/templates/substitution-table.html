@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>代入检验</title><style>/*__BASE_CSS__*/
+table { border-collapse: collapse; margin: 8px 0; } td, th { border: 1px solid #ddd; padding: 6px 12px; text-align: center; }
+th { background: #f3efe4; font-weight: normal; }
+</style></head>
+<body>
+<h1 id="title">代个数检查你的式子</h1>
+<p class="lead" id="story"></p>
+<div class="panel">
+  <div>你写的式子：<span class="math" id="mine"></span></div>
+  <table id="table"></table>
+  <div class="row">这些结果合理吗？ <button id="yes">合理</button> <button id="no">不合理</button></div>
+  <div class="feedback" id="fb"></div>
+</div>
+<div class="back">回到对话里，说说你发现了什么，再写一个你认为正确的式子。</div>
+<script>
+const P = /*__PARAMS__*/null;
+document.getElementById('title').textContent = P.title;
+document.getElementById('story').textContent = P.story;
+document.getElementById('mine').textContent = P.student_equation;
+const rows = P.values.map(g => [g, P.student.m * g + P.student.n]);
+document.getElementById('table').innerHTML =
+  `<tr><th>${P.given_label}（${P.given}）</th><th>按你的式子算出的${P.find_label}（${P.find}）</th></tr>` +
+  rows.map(([g, f]) => `<tr><td>${g}</td><td>${Number.isInteger(f) ? f : f.toFixed(2)}</td></tr>`).join('');
+function answer(saysOk) {
+  const fb = document.getElementById('fb');
+  const fits = P.values.every(g => Math.abs((P.student.m * g + P.student.n) - (P.correct.m * g + P.correct.n)) < 1e-9);
+  if (fits) { fb.className = 'feedback show good'; fb.textContent = saysOk ? '对，这些数和题意相符，你的式子是对的。' : '其实这些数都和题意相符，再读一遍题目对比一下。'; return; }
+  fb.className = 'feedback show ' + (saysOk ? 'try' : 'good');
+  fb.textContent = saysOk
+    ? `再想想：题目说"${P.relation_hint}"。表里当${P.given_label}是 ${rows[rows.length - 1][0]} 时，${P.find_label}应该比它多还是少？`
+    : `你发现了问题！按题意，${P.given_label}是 ${rows[rows.length - 1][0]} 时，${P.find_label}应该是 ${P.correct.m * rows[rows.length - 1][0] + P.correct.n}。试着改一改式子。`;
+}
+document.getElementById('yes').onclick = () => answer(true);
+document.getElementById('no').onclick = () => answer(false);
+</script>
+</body>
+</html>

@@ -1,0 +1,241 @@
+{
+ "schema": "k12-scheme-snapshot/1",
+ "id": "match-line",
+ "version": "0.4.0",
+ "name": "连线配对",
+ "summary": "A、B 两侧各 2～8 项文字或图片，打乱顺序展示；玩家拖动或先后点击两侧选项建立一对一连线，全部连上后提交统一判定，结果为全部配对正确或存在错误配对。",
+ "suitableFor": [
+  "节点需要 2～8 组 A、B 两侧一对一配对，每组正确关系唯一",
+  "单词与图片、术语与定义、人物与成就、国家与首都等对应关系",
+  "每侧可用文字或图片呈现"
+ ],
+ "notSuitableFor": [
+  "一对多、多对一的对应关系",
+  "分类归属",
+  "流程、时间或因果顺序",
+  "计算或填空",
+  "同侧内容重复或难以区分的任务",
+  "需要角色对白或旁白的叙事节点"
+ ],
+ "components": {
+  "cartoon": "72L1wM8Nf3p67883hzAqQCy8",
+  "retro-industrial": "7Qt0L77263Ir7Fm4JJB4n340",
+  "urban-tech": "03x-Em3753pw8wLAKu80C69I"
+ },
+ "params": {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "match-line 参数",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+   "question",
+   "options"
+  ],
+  "properties": {
+   "title": {
+    "type": "string",
+    "description": "页面标题，选填；不填或为空时组件显示“请配对连接”。"
+   },
+   "question": {
+    "type": "string",
+    "pattern": "\\S",
+    "description": "配对任务题干，必须含非空白字符。"
+   },
+   "options": {
+    "type": "array",
+    "minItems": 2,
+    "maxItems": 8,
+    "description": "配对单元，每项是一组正确配对；A 侧在左侧或上方，B 侧在右侧或下方，两侧顺序由组件打乱。",
+    "items": {
+     "type": "object",
+     "additionalProperties": false,
+     "properties": {
+      "optionA_text": {
+       "type": "string",
+       "maxLength": 10,
+       "description": "A 侧文字，选填，不超过 10 个字符；与 optionA_img 至少一项非空。"
+      },
+      "optionA_img": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "pattern": "^$|\\S",
+       "description": "A 侧图片地址，选填；无图时填空字符串或 null，不能是纯空白。填写后该侧只显示图片，不显示文字。",
+       "x-asset-slot": "optionAImage"
+      },
+      "optionB_text": {
+       "type": "string",
+       "maxLength": 10,
+       "description": "B 侧文字，选填，不超过 10 个字符；与 optionB_img 至少一项非空。"
+      },
+      "optionB_img": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "pattern": "^$|\\S",
+       "description": "B 侧图片地址，选填；无图时填空字符串或 null，不能是纯空白。填写后该侧只显示图片，不显示文字。",
+       "x-asset-slot": "optionBImage"
+      }
+     },
+     "allOf": [
+      {
+       "anyOf": [
+        {
+         "required": [
+          "optionA_text"
+         ],
+         "properties": {
+          "optionA_text": {
+           "type": "string",
+           "pattern": "\\S"
+          }
+         }
+        },
+        {
+         "required": [
+          "optionA_img"
+         ],
+         "properties": {
+          "optionA_img": {
+           "type": "string",
+           "pattern": "\\S"
+          }
+         }
+        }
+       ]
+      },
+      {
+       "anyOf": [
+        {
+         "required": [
+          "optionB_text"
+         ],
+         "properties": {
+          "optionB_text": {
+           "type": "string",
+           "pattern": "\\S"
+          }
+         }
+        },
+        {
+         "required": [
+          "optionB_img"
+         ],
+         "properties": {
+          "optionB_img": {
+           "type": "string",
+           "pattern": "\\S"
+          }
+         }
+        }
+       ]
+      }
+     ]
+    }
+   }
+  }
+ },
+ "semanticRules": [
+  {
+   "id": "pair-is-answer",
+   "description": "每个 options[] 项本身就是一组正确配对（A 侧与同一项的 B 侧），组件自行打乱两侧的展示顺序；不要为了打乱而拆散正确关系。",
+   "check": null
+  },
+  {
+   "id": "pair-answer-unique",
+   "description": "每组正确关系唯一：A 侧任一项只能与本组 B 侧项构成正确配对，不得与其他组的 B 侧项同样成立。",
+   "check": null
+  },
+  {
+   "id": "side-a-distinct",
+   "description": "A 侧各项的可见内容（显示的文字或图片表现对象）互不重复且可区分。",
+   "check": null
+  },
+  {
+   "id": "side-b-distinct",
+   "description": "B 侧各项的可见内容（显示的文字或图片表现对象）互不重复且可区分。",
+   "check": null
+  }
+ ],
+ "outcomes": [
+  {
+   "status": 0,
+   "kind": "process",
+   "semantic": null,
+   "terminal": false,
+   "message": "ready",
+   "trigger": "组件收到有效参数并完成初始化；提交前连线从全部连上变为未全部连上时再次上报"
+  },
+  {
+   "status": 10,
+   "kind": "process",
+   "semantic": null,
+   "terminal": false,
+   "message": "all_connected",
+   "trigger": "提交前每个选项都已连线，“提交”按钮变为可用"
+  },
+  {
+   "status": 1,
+   "kind": "graded",
+   "semantic": "success",
+   "terminal": true,
+   "message": "correct",
+   "trigger": "提交时每条连线都连到本组正确配对，玩家点击“继续”"
+  },
+  {
+   "status": 2,
+   "kind": "graded",
+   "semantic": "fail",
+   "terminal": true,
+   "message": "wrong",
+   "trigger": "提交时至少一条连线配对错误，玩家点击“继续”"
+  },
+  {
+   "status": -1,
+   "kind": "graded",
+   "semantic": "exit",
+   "terminal": true,
+   "message": "exit",
+   "trigger": "组件请求退出且退出前约 100 毫秒内未上报状态时由 ai-view 补发；本组件从不请求退出，不会出现"
+  }
+ ],
+ "sample": {
+  "title": "请配对连接",
+  "question": "请将左侧英文单词与右侧图片正确连线。",
+  "options": [
+   {
+    "optionA_text": "Apple",
+    "optionA_img": null,
+    "optionB_text": "",
+    "optionB_img": "https://cdn6-banquan.ituchong.com/weili/sm/2210680063092981771.webp"
+   },
+   {
+    "optionA_text": "Ball",
+    "optionA_img": null,
+    "optionB_text": "",
+    "optionB_img": "https://bpic.51yuansu.com/pic3/cover/03/65/13/5bdd306e90d8d_610.jpg"
+   },
+   {
+    "optionA_text": "Cat",
+    "optionA_img": null,
+    "optionB_text": "",
+    "optionB_img": "https://img1.baidu.com/it/u=2092310685,532760243&fm=253&fmt=auto&app=138&f=JPEG?w=500&h=624"
+   },
+   {
+    "optionA_text": "Dog",
+    "optionA_img": null,
+    "optionB_text": "",
+    "optionB_img": "https://q7.itc.cn/images01/20250703/24ed45d181524ed6bd3f671fa62bbff8.jpeg"
+   },
+   {
+    "optionA_text": "Egg",
+    "optionA_img": null,
+    "optionB_text": "",
+    "optionB_img": "https://img.shetu66.com/2023/12/13/1702438860672478.jpg?x-oss-process=image/resize,h_900/format,webp"
+   }
+  ]
+ },
+ "source": "https://interaction-scheme-hub.sdp.ndaeweb.com/api/v1/schemes/match-line/versions/0.4.0"
+}

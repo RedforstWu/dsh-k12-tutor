@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>一次函数：拖动 k 和 b</title><style>/*__BASE_CSS__*/
+.formula b { color: #c0392b; } .formula i { color: #2a6fb0; font-style: normal; font-weight: bold; }
+input[type=range] { width: min(220px, 65vw); vertical-align: middle; }
+table { border-collapse: collapse; width: 100%; } th, td { padding: 4px 8px; text-align: center; border: 1px solid #ddd; }
+tr.selected { outline: 2px solid #2a6fb0; background: #eef4fb; } td button { padding: 2px 12px; }
+#plot { display: block; width: 100%; max-width: 400px; height: auto; } #substitution { overflow-wrap: anywhere; }
+</style></head>
+<body>
+<h1 id="title">拖动滑块，看看 k 和 b 怎样改变直线</h1>
+<div class="row"><label for="mode">观察方式</label><select id="mode" style="width:auto;max-width:100%"><option value="free">自由探索</option><option value="k">固定 b，改变 k</option><option value="b">固定 k，改变 b</option></select><button id="reset">回到起点</button></div>
+<p id="prediction">先预测：x 增加 1 时，y 会变化多少？再拖动滑块观察。</p>
+<div class="math formula" id="formula">y = x + 1</div>
+<div class="row"><label for="k">k = <span id="kv">1</span></label><input id="k" type="range" min="-3" max="3" step="0.5" value="1"></div>
+<div class="row"><label for="b">b = <span id="bv">1</span></label><input id="b" type="range" min="-4" max="4" step="1" value="1"></div>
+<table><caption>同一组 x、y 值。选择 x 查看对应点。</caption><thead><tr><th scope="col">x</th><th scope="col">y</th><th scope="col">坐标点</th></tr></thead><tbody id="values"><tr><td>−1</td><td>0</td><td>(−1, 0)</td></tr><tr class="selected"><td>0</td><td>1</td><td>(0, 1)</td></tr><tr><td>1</td><td>2</td><td>(1, 2)</td></tr></tbody></table>
+<div class="panel" id="substitution" aria-live="polite">x = 0：y = 1 × (0) + (1) = 1，对应点 (0, 1)。</div>
+<svg id="plot" width="400" height="400" viewBox="-200 -200 400 400" role="img" aria-labelledby="plotTitle plotDesc"><title id="plotTitle">一次函数图象</title><desc id="plotDesc">y=x+1，经过 (−1,0)、(0,1)、(1,2)。表格提供相同数值。</desc><path d="M-180 0H180M0-180V180" stroke="#999"/><path d="M-180 160L160-180" stroke="#c0392b" stroke-width="3"/><circle cx="0" cy="-20" r="6" fill="#2a6fb0"/></svg>
+<div class="panel" id="note">x 每增加 1，y 增加 1。与 y 轴交于 (0, 1)。</div>
+<noscript><p>当前为静态例子 y=x+1。x 为 −1、0、1 时，y 为 0、1、2。固定 k=1，把 b 改为 2，试着列新表并说明各点怎样移动。交互需要启用 JavaScript。</p></noscript>
+<div class="feedback show info" id="task"></div>
+<div class="back">回到对话里解释：固定 k 改变 b 后，哪些量改变，哪些量不变？再把导师给的新表格中的一行对应到坐标点。</div>
+<script>
+const P = /*__PARAMS__*/null;
+const S = 20, svg = document.getElementById('plot'), ns = 'http://www.w3.org/2000/svg';
+const el = (tag, attrs, text) => { const e = document.createElementNS(ns, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (text !== undefined) e.textContent = text; svg.appendChild(e); return e; };
+const kInput = document.getElementById('k'), bInput = document.getElementById('b'), mode = document.getElementById('mode');
+let current = 0, selectedX = 0;
+function meets(t, k, b) {
+  if (t.k_sign === 'pos' && !(k > 0)) return false;
+  if (t.k_sign === 'neg' && !(k < 0)) return false;
+  if (t.k !== null && t.k !== undefined && k !== t.k) return false;
+  if (t.b !== null && t.b !== undefined && b !== t.b) return false;
+  if (t.through && Math.abs(k * t.through[0] + b - t.through[1]) > 1e-9) return false;
+  return k !== 0;
+}
+function draw(checkTask = false) {
+  const k = Number(kInput.value), b = Number(bInput.value);
+  const rows = [-1, 0, 1].map(x => ({x, y: k * x + b}));
+  const selected = rows.find(row => row.x === selectedX);
+  document.getElementById('kv').textContent = k; document.getElementById('bv').textContent = b;
+  const coef = k === 1 ? '' : k === -1 ? '−' : String(k).replace('-', '−');
+  const tail = b === 0 ? '' : ` <i>${b > 0 ? '+ ' + b : '− ' + Math.abs(b)}</i>`;
+  document.getElementById('formula').innerHTML = k === 0
+    ? `y = <i>${String(b).replace('-', '−')}</i>（k = 0 时不是一次函数）`
+    : `y = <b>${coef}</b>x${tail}`;
+  const table = document.getElementById('values'); table.replaceChildren();
+  for (const row of rows) {
+    const tr = table.insertRow(); tr.classList.toggle('selected', row.x === selectedX);
+    const button = document.createElement('button'); button.textContent = row.x;
+    button.setAttribute('aria-label', `选择 x = ${row.x}`); button.setAttribute('aria-pressed', String(row.x === selectedX));
+    button.onclick = () => { selectedX = row.x; draw(); };
+    tr.insertCell().appendChild(button); tr.insertCell().textContent = row.y; tr.insertCell().textContent = `(${row.x}, ${row.y})`;
+  }
+  document.getElementById('substitution').textContent = `x = ${selected.x}：y = ${k} × (${selected.x}) + (${b}) = ${selected.y}，对应点 (${selected.x}, ${selected.y})。`;
+  svg.replaceChildren();
+  el('title', {id: 'plotTitle'}, '一次函数图象');
+  el('desc', {id: 'plotDesc'}, `y=${k}x+${b}，选中点 (${selected.x}, ${selected.y})。表格提供相同数值。`);
+  for (let i = -9; i <= 9; i++) {
+    el('line', { x1: i * S, y1: -180, x2: i * S, y2: 180, stroke: i ? '#eee' : '#777' });
+    el('line', { x1: -180, y1: i * S, x2: 180, y2: i * S, stroke: i ? '#eee' : '#777' });
+    if (i && i % 2 === 0) { el('text', {x: i*S, y: 15, 'font-size': 10, 'text-anchor': 'middle'}, i); el('text', {x: -5, y: -i*S-3, 'font-size': 10, 'text-anchor': 'end'}, i); }
+  }
+  el('text', {x: 185, y: 15, 'font-size': 13}, 'x'); el('text', {x: 5, y: -185, 'font-size': 13}, 'y');
+  const defs = el('defs', {}), clip = document.createElementNS(ns, 'clipPath'); clip.id = 'bounds'; defs.appendChild(clip);
+  const rect = document.createElementNS(ns, 'rect'); for (const [key, value] of Object.entries({x:-180,y:-180,width:360,height:360})) rect.setAttribute(key, value); clip.appendChild(rect);
+  el('line', { x1: -180, y1: -(k * -9 + b) * S, x2: 180, y2: -(k * 9 + b) * S, stroke: '#c0392b', 'stroke-width': 3, 'clip-path': 'url(#bounds)' });
+  el('circle', { cx: 0, cy: -b * S, r: 5, fill: '#2a6fb0' });
+  el('path', { d: `M0 ${-b*S} H${S} V${-(k+b)*S}`, fill: 'none', stroke: '#555', 'stroke-width': 2, 'stroke-dasharray': '4 3' });
+  for (const row of rows) el('circle', {cx: row.x*S, cy: -row.y*S, r: row.x === selectedX ? 7 : 4, fill: '#fff', stroke: '#2a6fb0', 'stroke-width': row.x === selectedX ? 3 : 1});
+  el('text', {x: selected.x*S+9, y: -selected.y*S-9, 'font-size': 12}, `(${selected.x}, ${selected.y})`);
+  for (const t of P.tasks) if (t.through) el('circle', { cx: t.through[0] * S, cy: -t.through[1] * S, r: 5, fill: 'none', stroke: '#8e44ad', 'stroke-width': 2 });
+  const trend = k > 0 ? '从左往右上升' : k < 0 ? '从左往右下降' : '是一条水平线（k = 0 时不是一次函数）';
+  document.getElementById('note').textContent = `与 y 轴交于 (0, ${b})。虚线表示 x 增加 1，y 变化 ${k}。直线${trend}。空心圆和表格选中行对应。`;
+  const box = document.getElementById('task');
+  if (checkTask && current < P.tasks.length && meets(P.tasks[current], k, b)) current += 1;
+  box.textContent = current < P.tasks.length ? `任务 ${current + 1}/${P.tasks.length}：${P.tasks[current].text}` : '所有任务都完成了。请回到对话解释观察。';
+}
+function reset() { kInput.value = 1; bInput.value = 1; selectedX = 0; current = 0; draw(); }
+mode.onchange = () => {
+  kInput.disabled = mode.value === 'b'; bInput.disabled = mode.value === 'k';
+  document.getElementById('prediction').textContent = mode.value === 'k' ? '先预测：固定 b = 1，改变 k，哪个点保持不动？' : mode.value === 'b' ? '先预测：固定 k = 1，改变 b，点的位置和每行 y 的差怎样变？' : '先预测：x 增加 1 时，y 会变化多少？再拖动滑块观察。';
+  reset();
+};
+document.getElementById('title').textContent = P.title;
+document.getElementById('reset').onclick = reset;
+kInput.oninput = bInput.oninput = () => draw(true); draw();
+</script>
+</body>
+</html>

@@ -1,0 +1,204 @@
+{
+ "schema": "k12-scheme-snapshot/1",
+ "id": "choice-text.text-multi",
+ "version": "0.3.0",
+ "name": "文本多选（文本选项）",
+ "summary": "玩家阅读一道文字题干，从 2～4 个文字选项中勾选全部正确项后提交；可配置倒计时，归零时自动锁定作答。判定后显示正确答案与解析，玩家点击“继续”时上报正确、错误或超时。",
+ "suitableFor": [
+  "节点只承载一道文本多选题，题干和选项都以文字为主",
+  "存在 2 个及以上正确答案，选项 2～4 个",
+  "概念归纳、要素辨析或多项判断",
+  "需要按节奏限时作答时可配置倒计时"
+ ],
+ "notSuitableFor": [
+  "一个节点内有多道题",
+  "只有唯一正确答案",
+  "排序、分类、填空、计算",
+  "选项以图片为主"
+ ],
+ "components": {
+  "cartoon": "Ey-4k3DtG3rh7DX40BEl_3Pi",
+  "retro-industrial": "6FWART0yB3rS7VT5H-9gYC99",
+  "urban-tech": "Dec6LzBUq3fl8ogBJe3CL81i"
+ },
+ "params": {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "choice-text.text-multi 参数",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+   "question",
+   "options",
+   "answer"
+  ],
+  "properties": {
+   "title": {
+    "type": "string",
+    "pattern": "\\S",
+    "description": "弹窗顶部标题，选填；不传时显示“请完成多选题”。"
+   },
+   "timer": {
+    "type": [
+     "integer",
+     "string"
+    ],
+    "minimum": 1,
+    "pattern": "^(?:(?!0+s?$)[0-9]+s?|(?!0{1,2}:0{1,2}$)[0-9]{1,2}:[0-5]?[0-9])$",
+    "description": "作答限时，选填。整数秒（如 60），或字符串 \"60\"、\"60s\"、\"01:00\"（分:秒）；必须大于 0。不需要限时时省略。"
+   },
+   "question": {
+    "type": "string",
+    "pattern": "\\S",
+    "description": "题目内容，只承载一道题，须体现多选语义。"
+   },
+   "options": {
+    "type": "array",
+    "minItems": 2,
+    "maxItems": 4,
+    "description": "文本选项，按数组顺序展示。每项为字符串（如 \"A. 选项文案\"）或对象 { label, text }，推荐对象格式。",
+    "items": {
+     "type": [
+      "string",
+      "object"
+     ],
+     "description": "字符串格式必须以 A～D 中的一个大写字母加分隔符（. 、 : ： - 或空格）开头，后接单行文案；对象格式见 label、text。",
+     "pattern": "^[A-D][.、:：\\s-]+[^\\s][^\\n\\r\\u2028\\u2029]*$",
+     "additionalProperties": false,
+     "required": [
+      "label",
+      "text"
+     ],
+     "properties": {
+      "label": {
+       "type": "string",
+       "pattern": "^[A-D]$",
+       "description": "选项字母标识，取 A、B、C、D 之一。"
+      },
+      "text": {
+       "type": "string",
+       "pattern": "\\S",
+       "description": "选项文案。"
+      }
+     }
+    }
+   },
+   "answer": {
+    "type": "string",
+    "pattern": "^[A-D](?:,[A-D]){1,3}$",
+    "description": "全部正确选项的字母标识，用英文逗号分隔，至少 2 个，如 \"A,C\"；判定后原样显示在答案区。"
+   },
+   "explanation": {
+    "type": "string",
+    "description": "答案解析，选填；判定后无论结果都会显示，无解析时可留空字符串。"
+   },
+   "background": {
+    "type": "string",
+    "minLength": 1,
+    "description": "全屏背景图地址，选填，显示在半透明遮罩下方。",
+    "x-asset-slot": "background"
+   }
+  }
+ },
+ "semanticRules": [
+  {
+   "id": "option-label-unique",
+   "description": "各选项的字母标识互不重复。对象格式由 validate 自动检查 options[].label；字符串格式需人工核对开头字母。",
+   "check": {
+    "type": "unique",
+    "path": "options[].label"
+   }
+  },
+  {
+   "id": "option-text-unique",
+   "description": "各选项文案互不重复。对象格式由 validate 自动检查 options[].text；字符串格式需人工核对。",
+   "check": {
+    "type": "unique",
+    "path": "options[].text"
+   }
+  },
+  {
+   "id": "answer-letters-unique",
+   "description": "answer 中的字母互不重复，例如不能写成 B,B,D；重复字母会让任何作答都判为错误。",
+   "check": null
+  },
+  {
+   "id": "answer-matches-options",
+   "description": "answer 中每个字母都必须是某个选项的字母标识（对象格式取 label，字符串格式取开头字母），否则组件停在等待页。",
+   "check": null
+  },
+  {
+   "id": "question-multi-semantics",
+   "description": "题干须体现多选语义（如“选出所有”“哪些（可多选）”），允许全部选项均为正确项。",
+   "check": null
+  }
+ ],
+ "outcomes": [
+  {
+   "status": 0,
+   "kind": "process",
+   "semantic": null,
+   "terminal": false,
+   "message": "ready",
+   "trigger": "组件收到有效参数并完成初始化；部分参考实现会在每次重新渲染时重复上报"
+  },
+  {
+   "status": 1,
+   "kind": "graded",
+   "semantic": "success",
+   "terminal": true,
+   "message": "correct",
+   "trigger": "倒计时归零前点击“提交”，所选选项集合与 answer 的字母集合完全相同，玩家查看答案后点击“继续”"
+  },
+  {
+   "status": 2,
+   "kind": "graded",
+   "semantic": "fail",
+   "terminal": true,
+   "message": "wrong",
+   "trigger": "倒计时归零前点击“提交”，所选选项集合与 answer 不同（漏选正确项或含错误项），玩家查看答案后点击“继续”"
+  },
+  {
+   "status": 4,
+   "kind": "graded",
+   "semantic": "timeout",
+   "terminal": true,
+   "message": "timeout",
+   "trigger": "配置了 timer，倒计时在玩家提交前归零（不论当时勾选了什么），玩家查看答案后点击“继续”"
+  },
+  {
+   "status": -1,
+   "kind": "graded",
+   "semantic": "exit",
+   "terminal": true,
+   "message": "exit",
+   "trigger": "组件请求退出且退出前约 100 毫秒内未上报状态时由 ai-view 补发；本组件总是先上报结果再请求退出，正常流程不会出现"
+  }
+ ],
+ "sample": {
+  "title": "请完成多选题",
+  "timer": "60s",
+  "question": "下列句子中，使用了“拟人”修辞手法的选项是",
+  "options": [
+   {
+    "label": "A",
+    "text": "蝴蝶在花丛中跳舞，像一位优雅的舞者。"
+   },
+   {
+    "label": "B",
+    "text": "春天来了，小草偷偷地从土里探出头来。"
+   },
+   {
+    "label": "C",
+    "text": "风儿轻轻抚摸着我的脸，像妈妈的手一样温柔。"
+   },
+   {
+    "label": "D",
+    "text": "月亮静静地挂在夜空，注视着大地。"
+   }
+  ],
+  "answer": "B,D",
+  "explanation": "拟人是把事物当作人来写，让它有人类的动作、情感或语言。B和D都符合这个特点。",
+  "background": "https://t8.baidu.com/it/u=1463230774,1776177532&fm=193"
+ },
+ "source": "https://interaction-scheme-hub.sdp.ndaeweb.com/api/v1/schemes/choice-text.text-multi/versions/0.3.0"
+}

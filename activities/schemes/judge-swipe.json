@@ -1,0 +1,186 @@
+{
+ "schema": "k12-scheme-snapshot/1",
+ "id": "judge-swipe",
+ "version": "0.3.0",
+ "name": "滑动判断",
+ "summary": "玩家逐张查看文字或图片判断卡片，左滑表示错误、右滑表示正确（也可点击两侧“错误”“正确”标识），每张即时反馈对错，全部答完按全部答对、全部答错、部分答对给出结果。",
+ "suitableFor": [
+  "节点需要 1～20 张正误判断卡片，每张卡片只有一个判断点",
+  "卡片题干可由文字、图片或两者共同呈现",
+  "快速辨析事实、规则、例外或常见错误认知"
+ ],
+ "notSuitableFor": [
+  "排序、填空、计算、匹配",
+  "最佳答案选择、程度判断、多选",
+  "把概念识别或归类硬写成“是不是某概念”“是否符合某描述”的问法",
+  "需要角色对白或旁白的叙事节点"
+ ],
+ "components": {
+  "cartoon": "EKl8Ai9_r3ig8XO9xs5kg6nj",
+  "retro-industrial": "2Z0EII7EY3Mw7EQ5p48tu4qT",
+  "urban-tech": "ASL6tv3o83_l95t0iUCBQ6OY"
+ },
+ "params": {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "judge-swipe 参数",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+   "question",
+   "questions"
+  ],
+  "properties": {
+   "title": {
+    "type": "string",
+    "description": "页面标题，选填；显示在题干上方。"
+   },
+   "question": {
+    "type": "string",
+    "minLength": 1,
+    "description": "判断题组的题干，显示在页面顶部。"
+   },
+   "completionDelayMs": {
+    "type": "number",
+    "minimum": 0,
+    "deprecated": true,
+    "description": "历史兼容字段，选填。组件只校验它是非负数，不使用它；完成后由玩家点击“继续”结束。"
+   },
+   "questions": {
+    "type": "array",
+    "minItems": 1,
+    "maxItems": 20,
+    "description": "判断卡片，按数组顺序逐张展示。",
+    "items": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "answer"
+     ],
+     "properties": {
+      "text": {
+       "type": "string",
+       "description": "卡片上的判断陈述，选填；与 img 至少一项非空。"
+      },
+      "img": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "pattern": "^$|\\S",
+       "description": "卡片题图地址，选填；无图时填空字符串或 null，不能是纯空白。与 text 至少一项非空。",
+       "x-asset-slot": "questionImage"
+      },
+      "answer": {
+       "enum": [
+        "正确",
+        "错误"
+       ],
+       "description": "该陈述的标准答案，只能是“正确”或“错误”。"
+      }
+     },
+     "anyOf": [
+      {
+       "required": [
+        "text"
+       ],
+       "properties": {
+        "text": {
+         "type": "string",
+         "pattern": "\\S"
+        }
+       }
+      },
+      {
+       "required": [
+        "img"
+       ],
+       "properties": {
+        "img": {
+         "type": "string",
+         "pattern": "\\S"
+        }
+       }
+      }
+     ]
+    }
+   }
+  }
+ },
+ "semanticRules": [
+  {
+   "id": "single-judgement-point",
+   "description": "每张卡片只含一个可判真假的判断点；多个条件混在一句里会出现半对半错，应拆题或改写。",
+   "check": null
+  },
+  {
+   "id": "no-answer-leak",
+   "description": "questions[].text 与题图不得泄露答案：不得出现“正确/错误”字样、答案括号、对勾、叉号或红绿判定。",
+   "check": null
+  }
+ ],
+ "outcomes": [
+  {
+   "status": 0,
+   "kind": "process",
+   "semantic": null,
+   "terminal": false,
+   "message": "ready",
+   "trigger": "组件收到有效参数并完成初始化"
+  },
+  {
+   "status": 1,
+   "kind": "graded",
+   "semantic": "success",
+   "terminal": true,
+   "message": "all_correct",
+   "trigger": "全部卡片作答完毕且每张都判断正确，玩家在完成页点击“继续”"
+  },
+  {
+   "status": 2,
+   "kind": "graded",
+   "semantic": "fail",
+   "terminal": true,
+   "message": "all_wrong",
+   "trigger": "全部卡片作答完毕且答对数为 0，玩家在完成页点击“继续”"
+  },
+  {
+   "status": 3,
+   "kind": "graded",
+   "semantic": "partial",
+   "terminal": true,
+   "message": "partial_correct",
+   "trigger": "全部卡片作答完毕且答对数大于 0、小于卡片总数，玩家在完成页点击“继续”"
+  },
+  {
+   "status": -1,
+   "kind": "graded",
+   "semantic": "exit",
+   "terminal": true,
+   "message": "exit",
+   "trigger": "组件请求退出且退出前约 100 毫秒内未上报状态时由 ai-view 补发；本组件总是先上报结果再请求退出，正常流程不会出现"
+  }
+ ],
+ "sample": {
+  "title": "判断练习",
+  "question": "请做出对错判断",
+  "completionDelayMs": 2000,
+  "questions": [
+   {
+    "text": "橡皮泥挤压发生形变",
+    "img": null,
+    "answer": "错误"
+   },
+   {
+    "text": "用手按弹簧，弹簧产生形变的力就是弹力",
+    "img": "https://img0.baidu.com/it/u=3097612138,58988988&fm=253&fmt=auto&app=138&f=JPEG?w=400&h=400",
+    "answer": "正确"
+   },
+   {
+    "text": "",
+    "img": "https://t10.baidu.com/it/u=1926281935,263506505&fm=30&app=106&f=JPEG?w=640&h=839&s=79843D76455362645E7C166E0200A074",
+    "answer": "正确"
+   }
+  ]
+ },
+ "source": "https://interaction-scheme-hub.sdp.ndaeweb.com/api/v1/schemes/judge-swipe/versions/0.3.0"
+}
