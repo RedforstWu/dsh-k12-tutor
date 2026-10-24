@@ -5,6 +5,7 @@ import datetime as dt
 import hashlib
 import json
 import os
+import re
 import sqlite3
 import time
 import uuid
@@ -29,8 +30,10 @@ def now():
     return dt.datetime.now(dt.timezone.utc).isoformat().replace('+00:00', 'Z')
 
 @contextmanager
-def database(args):
+def database(args, *, allow_legacy=False):
     ws = Workspace(args.get('cwd'), args.get('session'))
+    if not allow_legacy:
+        ws.state()
     ws.root.mkdir(parents=True, exist_ok=True)
     db = sqlite3.connect(ws.root / 'study-sync.sqlite', timeout=30)
     db.row_factory = sqlite3.Row
@@ -45,6 +48,7 @@ def database(args):
     CREATE TABLE IF NOT EXISTS exercises(id TEXT PRIMARY KEY, session TEXT NOT NULL,
       task TEXT NOT NULL, slot TEXT NOT NULL, snapshot TEXT NOT NULL,
       opened_order INTEGER NOT NULL, first_whole TEXT, UNIQUE(session,task,slot));
+    CREATE TABLE IF NOT EXISTS exercise_state(exercise_id TEXT PRIMARY KEY, value TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS records(event_id TEXT PRIMARY KEY, exercise_id TEXT NOT NULL,
       response_ref TEXT NOT NULL, answer_slot TEXT NOT NULL, record TEXT,
       local_revision INTEGER NOT NULL, canonical_revision INTEGER, record_id TEXT,
@@ -87,10 +91,9 @@ def enabled(cwd):
     with sqlite3.connect(path) as db:
         return db.execute("SELECT 1 FROM settings WHERE key='enabled' AND value='true'").fetchone() is not None
 
-def capture(args):
+def capture(args, *, local_only=False):
     responses = []
     with database(args) as (db, ws):
-        db.execute("INSERT OR REPLACE INTO settings VALUES ('enabled','true')")
         scan = args.get('scan')
         if scan is not None:
             prior = db.execute('SELECT * FROM host_scans WHERE session=?',(ws.session,)).fetchone()
@@ -154,8 +157,25 @@ def capture(args):
             if item['role'] == 'user':
                 if not old or not old['dismissed']:
                     responses.append({'responseRef':ref,'messageId':item['messageId']})
-        downgrade_contradictions(db, ws.session)
+        remote = not local_only and enabled(str(ws.root.parent)) and binding_snapshot(ws.root.parent) is not None
+        downgrade_contradictions(db, ws.session, local_only=not remote)
     return {'responses': responses[-20:], 'observationEnabled': False}
+
+
+def enable(args):
+    if not binding_snapshot(args['cwd']):
+        return {'enabled': False}
+    with database(args) as (db, _):
+        db.execute("INSERT OR REPLACE INTO settings VALUES ('enabled','true')")
+    return {'enabled': True}
+
+
+SLOT = re.compile(r'^(?:diagnose|practice|transfer|review|reflection)-[1-9][0-9]{0,3}$')
+STEP = re.compile(r'^step-[1-9][0-9]{0,3}$')
+
+
+def valid_slot(slot):
+    return isinstance(slot, str) and SLOT.fullmatch(slot) is not None
 
 def unattributed_history(db, session, opened_order, opened_seq):
     return db.execute("""SELECT 1 FROM evidence output
@@ -178,11 +198,13 @@ def earlier_learner_input(db, session, question, response):
        question['capture_order'],response['capture_order'])).fetchone()
 
 
-def downgrade_contradictions(db, session):
+def downgrade_contradictions(db, session, *, local_only=False):
     """Append a help revision; never rewrite a frozen create/retry payload."""
     scan = db.execute('SELECT * FROM host_scans WHERE session=?',(session,)).fetchone()
     rows = db.execute("SELECT r.*,e.opened_order FROM records r JOIN exercises e ON e.id=r.exercise_id WHERE e.session=? AND r.record IS NOT NULL AND r.sync<>'deleted'",(session,)).fetchall()
     for row in rows:
+        if local_only and row['sync'] != 'local_only':
+            continue
         data = json.loads(row['record'])
         submission = data.get('submission',{})
         proof = submission.get('hostProof')
@@ -205,6 +227,9 @@ def downgrade_contradictions(db, session):
         previous = db.execute('SELECT * FROM outbox WHERE event_id=? ORDER BY local_revision DESC LIMIT 1',(row['event_id'],)).fetchone()
         revision = row['local_revision'] + 1
         dependency = previous['id'] if previous and previous['state'] in ('pending','blocked','conflict') else None
+        if row['sync'] == 'local_only':
+            db.execute('UPDATE records SET record=?,local_revision=? WHERE event_id=?', (packed(data), revision, row['event_id']))
+            continue
         db.execute('UPDATE records SET record=?,local_revision=?,sync=? WHERE event_id=?',(packed(data),revision,'pending',row['event_id']))
         operation_id = uid()
         db.execute('INSERT INTO outbox(id,event_id,local_revision,operation,intent,binding,base_revision,dependency,state) VALUES (?,?,?,?,?,?,?,?,?)',
@@ -254,19 +279,21 @@ def assessment(args):
         template = build(args.get('assessment'))
     except ValueError as exc:
         raise StudyError(str(exc)) from exc
-    if args.get('slot') not in ('diagnose-1','practice-1','transfer-1','review-1','reflection-1') or args.get('purpose') not in ('diagnosis','practice','transfer','review'):
+    if not valid_slot(args.get('slot')) or args.get('purpose') not in ('diagnosis','practice','transfer','review'):
         raise StudyError('invalid assessment slot or purpose')
     context = {key: args.get(key) for key in ('cwd', 'session')}
     routed = route_task({**context, 'action':'start', 'playbook':'practice', 'subject':'math',
                          'grade':8, 'knowledge_points':template['teacherKnowledgeIds']})
-    return record({**context, 'action':'open', 'taskRef':routed['task_id'],
-                   **{key:args[key] for key in ('assessment','slot','purpose')}})
+    result = record({**context, 'action':'open', 'taskRef':routed['task_id'],
+                     **{key:args[key] for key in ('assessment','slot','purpose')}})
+    return {'exerciseId':result['exerciseId'], 'answerSlots':['whole','reflection','step-1'],
+            'deliveryText':result['deliveryText']}
 
 
-def record(args):
+def record(args, *, local_only=False):
     action = args.get('action')
     allowed = {
-      'open': {'action','taskRef','slot','question','assessment','purpose','follows','taughtBy'},
+      'open': {'action','taskRef','slot','question','assessment','purpose','follows','taughtBy','assessmentContext'},
       'answer': {'action','exerciseId','responseRef','answerSlot','scope','judgment','reportedAssistance'},
       'skip': {'action','exerciseId','responseRef'},
       'dismiss': {'action','responseRef','reason'},
@@ -275,15 +302,15 @@ def record(args):
     if action not in allowed:
         raise StudyError('invalid action')
     fields(args,allowed[action])
-    if not enabled(args.get('cwd')):
-        raise StudyError('study integration is disabled')
+    state = Workspace(args.get('cwd'), args.get('session')).state()
     with database(args) as (db,ws):
         if action == 'open':
-            task = next((task for task in ws.state()['tasks'] if args.get('taskRef') in (task['id'],f'{ws.session}:{task["id"]}')),None)
+            from . import exercise as ledger
+            task = next((task for task in state['tasks'] if args.get('taskRef') in (task['id'],task['taskRef'])),None)
             if not task:
                 raise StudyError('taskRef must reference this session task')
-            if args.get('slot') not in ('diagnose-1','practice-1','transfer-1','review-1','reflection-1'):
-                raise StudyError('slot must be a predefined exercise slot')
+            if not valid_slot(args.get('slot')):
+                raise StudyError('slot must be a purpose and bounded positive integer')
             if args.get('purpose') not in ('diagnosis','practice','transfer','review'):
                 raise StudyError('invalid purpose')
             template = None
@@ -317,7 +344,7 @@ def record(args):
                 if args.get(key):
                     if key == 'follows' and not db.execute('SELECT 1 FROM exercises WHERE id=? AND session=?',(args[key],ws.session)).fetchone():
                         raise StudyError('unknown follows exercise')
-                    if key == 'taughtBy' and not any(a.get('activityId') == args[key] for a in ws.state().get('activities',[])):
+                    if key == 'taughtBy' and not any(a.get('activityId') == args[key] for a in state.get('activities',[])):
                         raise StudyError('unknown teaching activity')
                     snapshot[key] = args[key]
             old = db.execute('SELECT * FROM exercises WHERE session=? AND task=? AND slot=?',(ws.session,task['id'],args['slot'])).fetchone()
@@ -325,11 +352,19 @@ def record(args):
                 previous = json.loads(old['snapshot'])
                 if {k:v for k,v in previous.items() if k!='exerciseId'} != snapshot:
                     raise StudyError('exercise slot snapshot conflict')
-                return {'exerciseId':old['id'],'answerSlots':['whole','reflection','step-1'], **({'deliveryText':template['deliveryText']} if template else {})}
+                protection = ledger.tighten(db, old, state.get('flags', []))
+                if protection.get('openingContext') != args.get('assessmentContext'):
+                    raise StudyError('exercise opening context conflict')
+                return open_receipt(state, old['id'], template)
             exercise_id = uid()
             snapshot['exerciseId'] = exercise_id
             order = db.execute('SELECT coalesce(max(capture_order),0) FROM evidence').fetchone()[0]
             db.execute('INSERT INTO exercises VALUES (?,?,?,?,?,?,NULL)',(exercise_id,ws.session,task['id'],args['slot'],packed(snapshot),order))
+            protection = ledger.reported_context(db, ws.session, ledger.inherited_context(db, task, question), args.get('assessmentContext'))
+            protection = ledger.retain_question_constraints(db, ws.session, question, protection)
+            protection['openingContext'] = args.get('assessmentContext')
+            ledger.save(db, exercise_id, protection)
+            ledger.tighten(db, db.execute('SELECT * FROM exercises WHERE id=?', (exercise_id,)).fetchone(), state.get('flags', []))
             scan = db.execute('SELECT * FROM host_scans WHERE session=?',(ws.session,)).fetchone()
             fingerprint = template['fingerprint'] if template else None
             repeated = fingerprint and db.execute('SELECT 1 FROM seen_assessments WHERE fingerprint=?',(fingerprint,)).fetchone()
@@ -346,11 +381,26 @@ def record(args):
                        (exercise_id,scan['through_seq'] if scan else None,fingerprint,int(bool(scan and scan['complete'] and not repeated and not prior_unattributed))))
             if fingerprint:
                 db.execute('INSERT OR IGNORE INTO seen_assessments VALUES (?,?)',(ws.session,fingerprint))
-            return {'exerciseId':exercise_id,'answerSlots':['whole','reflection','step-1'], **({'deliveryText':template['deliveryText']} if template else {})}
+            db.commit()
+            result = open_receipt(state, exercise_id, template)
+            if state.get('activeTaskRef') == task['taskRef'] and task['status'] == 'active':
+                task['activeExerciseId'] = exercise_id
+                try:
+                    from .whiteboard import invalidate
+                    invalidate(ws)
+                    state.pop('board_selection', None)
+                    ws.save(state)
+                except OSError:
+                    result.update(state='navigation_failed', recovery='resume this taskRef and exerciseId', selected=False)
+                    return result
+                result.update(selected=True, currentFocus={'taskRef': task['taskRef'], 'exerciseId': exercise_id})
+            return result
         if action == 'revise':
             row = db.execute('SELECT r.* FROM records r JOIN exercises e ON e.id=r.exercise_id WHERE event_id=? AND e.session=?',(args.get('eventId'),ws.session)).fetchone()
             if not row or row['sync']=='deleted':
                 raise StudyError('stale or missing local revision')
+            if local_only and row['sync'] != 'local_only':
+                raise StudyError('remote records require their authorized recording channel')
             if not args.get('reason'):
                 raise StudyError('revision reason required')
             change = {'judgment':judgment(args['judgment'])} if 'judgment' in args else {}
@@ -381,6 +431,9 @@ def record(args):
                 db.execute("UPDATE outbox SET state='superseded' WHERE event_id=? AND state='conflict'",(row['event_id'],))
             binding = previous['binding'] if previous else None
             revision = row['local_revision']+1
+            if row['sync'] == 'local_only':
+                db.execute('UPDATE records SET record=?,local_revision=? WHERE event_id=?', (packed(data), revision, row['event_id']))
+                return receipt(db, row['event_id'])
             db.execute('UPDATE records SET record=?,local_revision=?,sync=? WHERE event_id=?',(packed(data),revision,'pending',row['event_id']))
             db.execute('INSERT INTO outbox(id,event_id,local_revision,operation,intent,binding,base_revision,dependency,state) VALUES (?,?,?,?,?,?,?,?,?)',
                        (uid(),row['event_id'],revision,'update',packed(change),binding,row['canonical_revision'],dependency,'pending'))
@@ -396,13 +449,17 @@ def record(args):
         exercise = db.execute('SELECT * FROM exercises WHERE id=? AND session=?',(args.get('exerciseId'),ws.session)).fetchone()
         if not exercise:
             raise StudyError('exercise must belong to this session')
+        from . import exercise as ledger
+        if ledger.ensure(db, exercise).get('context_only'):
+            raise StudyError('context-only protection is not an assigned question')
         if evidence['capture_order'] <= exercise['opened_order']:
             raise StudyError('response must follow exercise opening')
         slot = args.get('answerSlot') if action == 'answer' else 'skip'
         if action == 'answer':
             scope = args.get('scope')
-            expected = {'whole':{'kind':'whole'},'reflection':{'kind':'reflection'},'step-1':{'kind':'step','stepKey':'step-1'}}
-            if slot not in expected or scope != expected[slot]:
+            expected = ({'kind':slot} if slot in ('whole','reflection') else
+                        {'kind':'step','stepKey':slot} if isinstance(slot,str) and STEP.fullmatch(slot) else None)
+            if expected is None or scope != expected:
                 raise StudyError('invalid answer slot or scope')
             if not evidence['text'].strip() or len(evidence['text']) > 16000:
                 raise StudyError('answer evidence is empty or exceeds supported bound')
@@ -454,11 +511,23 @@ def record(args):
                 data['submission']['hostProof'] = proof
             if slot == 'whole' and exercise['first_whole'] is None:
                 db.execute('UPDATE exercises SET first_whole=? WHERE id=?',(event,exercise['id']))
-        snapshot = binding_snapshot(ws.root.parent)
+        snapshot = binding_snapshot(ws.root.parent) if not local_only and enabled(str(ws.root.parent)) else None
+        frozen = json.loads(exercise['snapshot'])
+        if frozen.get('source') in ('context', 'legacy', 'legacy-web'):
+            snapshot = None
         wire = {'exercise':json.loads(exercise['snapshot']),'record':data}
-        db.execute('INSERT INTO records VALUES (?,?,?,?,?,1,NULL,NULL,?)',(event,exercise['id'],evidence['ref'],slot,packed(data),'pending'))
-        db.execute('INSERT INTO outbox(id,event_id,local_revision,operation,intent,binding,state) VALUES (?,?,1,?,?,?,?)',(uid(),event,'create',packed(wire),packed(snapshot) if snapshot else None,'pending'))
+        db.execute('INSERT INTO records VALUES (?,?,?,?,?,1,NULL,NULL,?)',(event,exercise['id'],evidence['ref'],slot,packed(data),'pending' if snapshot else 'local_only'))
+        if snapshot:
+            db.execute('INSERT INTO outbox(id,event_id,local_revision,operation,intent,binding,state) VALUES (?,?,1,?,?,?,?)',(uid(),event,'create',packed(wire),packed(snapshot),'pending'))
         return receipt(db,event)
+
+
+def open_receipt(state, exercise_id, template=None):
+    from .session import current_task
+    active = current_task(state)
+    return {'exerciseId':exercise_id, 'answerSlots':['whole','reflection','step-N'], 'selected':False,
+            'currentFocus': {'taskRef': active['taskRef'], 'exerciseId': active.get('activeExerciseId')} if active else None,
+            **({'deliveryText':template['deliveryText']} if template else {})}
 
 def apply_remote(db, view):
     tutor = view['tutor']
@@ -577,32 +646,49 @@ def flush(args, limit=20, transport=None):
             break
     return {'state':'complete','sent':sent}
 
-def query(args):
+def query(args, *, refresh=True, read_authorized=False):
     fields(args,{'kind','limit','cursor','knowledgeId','exerciseId'})
     kind = args.get('kind','recent')
     limit = args.get('limit',20)
     if kind not in ('recent','wrong','mastery','gaps') or type(limit) is not int or not 1<=limit<=100:
         raise StudyError('invalid bounded query')
-    if not enabled(args.get('cwd')):
+    integration_enabled = enabled(args.get('cwd'))
+    if not integration_enabled and not read_authorized:
         return {'freshness':'unavailable','reason':'disabled','observedAt':None}
     from .study_transport import load_binding, Transport, TransportError
     binding = load_binding(args['cwd'])
     if not binding:
         return {'freshness':'unavailable','reason':'unbound','observedAt':None}
     key = packed([binding['studentId'],binding['endpoint'],kind,limit,args.get('cursor'),args.get('knowledgeId'),args.get('exerciseId')])
-    sync = {'state':'blocked','reason':'credentials unavailable'}
+    status_key = packed(['query-status', key])
+    def cached_result():
+        with database(args) as (db, _):
+            cached = db.execute('SELECT * FROM cache WHERE key=?', (key,)).fetchone()
+            status = db.execute('SELECT value FROM cache WHERE key=?', (status_key,)).fetchone()
+        failure = json.loads(status['value']) if status else {}
+        if failure.get('reason') == 'authorization':
+            return {'freshness':'unavailable','observedAt':None,**failure}
+        if cached:
+            return {'freshness':'cached','observedAt':cached['observed_at'],'data':json.loads(cached['value']),**failure}
+        return {'freshness':'unavailable' if failure else 'not_requested','observedAt':None,**failure}
+    if not refresh:
+        return cached_result()
+    sync = ({'state':'blocked','reason':'credentials unavailable'} if integration_enabled
+            else {'state':'disabled','reason':'upload integration is disabled'})
     try:
         transport = Transport(binding)
-        sync = flush(args,transport=transport)
+        if integration_enabled:
+            sync = flush(args,transport=transport)
         value = transport.call(kind,limit=limit,cursor=args.get('cursor'),knowledge_id=args.get('knowledgeId'),exercise_id=args.get('exerciseId'))
         stamp = now()
         with database(args) as (db,ws):
             db.execute('INSERT OR REPLACE INTO cache VALUES (?,?,?)',(key,packed(value),stamp))
+            db.execute('DELETE FROM cache WHERE key=?', (status_key,))
             local_receipts = [receipt(db,row['event_id']) for row in db.execute('SELECT event_id FROM records ORDER BY rowid DESC LIMIT ?', (limit,)).fetchall()]
-        return {'freshness':'live','observedAt':stamp,'data':value,'localReceipts':local_receipts,'sync':sync,'observationEnabled':False}
-    except TransportError:
-        with database(args) as (db,ws):
-            row = db.execute('SELECT * FROM cache WHERE key=?',(key,)).fetchone()
-        if row:
-            return {'freshness':'cached','observedAt':row['observed_at'],'data':json.loads(row['value']),'sync':sync}
-        return {'freshness':'unavailable','observedAt':None,'sync':sync}
+        return {'freshness':'live','observedAt':stamp,'attemptedAt':stamp,'data':value,'localReceipts':local_receipts,'sync':sync,'observationEnabled':False}
+    except TransportError as exc:
+        failure = {'attemptedAt': now(), 'reason': 'authorization' if exc.code in ('UNAUTHORIZED', 'FORBIDDEN')
+                   or 'identity' in exc.reason or 'credential' in exc.reason else 'service'}
+        with database(args) as (db, _):
+            db.execute('INSERT OR REPLACE INTO cache VALUES (?,?,?)', (status_key, packed(failure), failure['attemptedAt']))
+        return {**cached_result(), 'sync': sync}

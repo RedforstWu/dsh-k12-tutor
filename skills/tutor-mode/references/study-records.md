@@ -1,13 +1,13 @@
 # 学习记录工具与管理操作
 
-学习记录默认关闭。只为批准的工作区安装配置。安装命令会修改指定 K12 profile，需要按现有发布流程单独授权和激活。
+本地题目账本在辅导工作区捕获真实输入，独立于远端学习记录开关。远端同步默认关闭，只为批准的工作区配置。以下安装命令修改指定 K12 profile，需要按现有发布流程单独授权和激活。
 
 ```powershell
 & $PY tools/install_profile.py --check --study-workspace 'C:\approved\student'
 & $PY tools/install_profile.py --apply --study-workspace 'C:\approved\student'
 ```
 
-`--study-workspace` 可以重复传入。插件需要 `studyEnabled: true` 和精确匹配的 `studyWorkspaces` 路径。其他工作区不捕获、不调用学习记录工具。工作区账本中的观察集成开关持久保存；已经启用的工作区不能绕回 `learner_profile(observe)` 重复记账。
+`--study-workspace` 可以重复传入。legacy 远端工具准入需要 `studyEnabled: true` 和精确匹配的 `studyWorkspaces` 路径；本地捕获和 study_record 不因此启用绑定、上传或旧远端入口。家庭模式使用宿主已验证的学习空间。作答事实在所有模式都只走题目账本，不另写 learner_profile observe。
 
 管理绑定使用 `tools/study_binding.py bind --workspace <绝对路径> --config <配置文件>`。配置包含 `studentId`、HTTPS `endpoint`、环境变量名 `credentialRef` 和固定 CLI 启动数组 `command`。Windows 使用绝对 node.exe 与绝对 bin/k12.js 路径。配置不能放令牌值。令牌只从命名环境变量读取并放入独立 CLI 子进程环境。绑定核验 whoami 学生身份及服务端 `learning-v1` 能力，并固定 CLI 文件哈希。相同学生令牌轮换重新 bind。另一个学生或站点必须使用新的工作区。复制账本不会继承授权。未绑定时产生的记录不会在补绑定后自动上传。
 
@@ -17,13 +17,15 @@
 
 独立评估直接调用 `study_assessment({assessment:{templateId,params},slot,purpose})`，不先 read、route_task 或输出开场白。引擎内部固定路由，工具只返回 exerciseId、answerSlots、deliveryText；原样单独发送 deliveryText 后等待真实回答。原生宿主工具参数和结果可展开查看，因此其他工具均不能作为独立评估的中性事件。
 
-普通辅导先 `route_task(action=start)`，再在学生回答前调用 `study_record(action=open)`。taskRef 使用当前任务 ID 或 `sessionId:taskId`。预定义题目槽为 `diagnose-1`、`practice-1`、`transfer-1`、`review-1`、`reflection-1`。同任务同槽重试复用练习 ID，题目变化须开始新任务。question 包含 `type=single|multiple|blank|free`、stem、options 和 referenceAnswer。选择题 options 为 `{key,text}` 数组，其余题型为 null；未知参考答案为 null。
+普通辅导需要持续目标时 `route_task(action=start)`。题目开立必须早于可记录作答，不能为已有解答补造独立练习。同目标的新题直接 `study_record(action=open)`，不用再 start。taskRef 使用返回的 `sessionId:taskId` 或本会话任务 ID。slot 为 diagnose、practice、transfer、review、reflection 加 `-1` 至 `-9999`，如 practice-2；purpose 仍使用工具规定的有限集合。相同任务与槽位重试复用身份，同槽改快照报冲突，新题使用新槽位。可用 follows 关联原题，不清除原帮助。
 
-open 返回 `exerciseId` 和答案槽 `whole`、`reflection`、`step-1`。插件注入真实输入的 responseRef，不接受模型提交正文、学生 ID、时间、凭据或新 eventId。answer 使用 exerciseId、responseRef、answerSlot 和对应 scope。`whole` 对应 `{kind:'whole'}`，`reflection` 对应 `{kind:'reflection'}`，`step-1` 对应 `{kind:'step',stepKey:'step-1'}`。
+question 包含 `type=single|multiple|blank|free`、stem、options 和 referenceAnswer。选择题 options 为 `{key,text}` 数组，其余题型为 null；未知参考答案为 null。只改教学方法、图示或表达不改变题意时，保留 exerciseId，用 adapt 调整指导。新条件改变答案时开新题。回到旧任务或题目用 resume；open 重试不会抢回焦点。返回 navigation_failed 时使用回执中的 taskRef/exerciseId 显式恢复，不再发一遍新题。
+
+open 返回 exerciseId 和答案槽说明。插件注入真实输入的 responseRef，不接受模型提交正文、学生 ID、时间、凭据或新 eventId。answer 使用 exerciseId、responseRef、answerSlot 和对应 scope。whole 对应 `{kind:'whole'}`，reflection 对应 `{kind:'reflection'}`，step-N 对应 `{kind:'step',stepKey:'step-N'}`，N 为 1..9999。同一步真实重答使用新 responseRef；修正既有判定用 revise，不能把同一引用重复制造成新尝试。
 
 判定为 `{state:'graded',correct:true,errorCause:null}` 或 `{state:'graded',correct:false,errorCause:'concept'}`。错因可为 concept、method、calc、misread、careless 或 null。未确认判定用 `{state:'pending',reason:'technical'|'incomplete'|'needs_review'}`。宿主没有可靠序号或时间时保留 null，证据不完整只能 pending。早于练习打开的上下文消息不能充作该练习作答。
 
-受控评估可用 assessment 替代 question：`{templateId:"linear-function-value/v1",params:{k:2,b:1,x:2}}`、`linear-equation/v1` 的 `{a,b,c}`、`linear-inequality/v1` 的 `{a,b,c,op:"<"}`（op 也可为 >）。整数范围 -20..20，a/k 非零，模板必须匹配当前路由知识点。open 返回 deliveryText，必须原样单独发给学生，不加解释、提示、页面或其他文案，再等待真实回答。自由 question 继续支持，但帮助未知，不取得独立资格。宿主完整事件窗口确认仅输出该题、没有其他输出且首次整题作答时，才生成独立性证明；reportedAssistance 只能降级到 hint/revealed，不能证明独立。同题或等价方程重复不能恢复首答资格。`skip` 需要真实输入中的明确跳过或结束表达与宿主时间。`dismiss` 仅标记自述、上下文、非作答或技术问题，不生成作答。
+受控独立评估使用专用 study_assessment 入口，不用普通 open 代替。模板及参数以当前工具 Schema 为准。必须将返回的 deliveryText 原样单独发给学生，不加解释、提示、页面或其他文案，再等待真实回答。自由 question 的帮助未知，不取得独立资格。宿主完整事件窗口确认仅输出该题、没有其他输出且首次整题作答时，才生成独立性证明；reportedAssistance 只能降级到 hint/revealed，不能证明独立。同题或等价方程重复不能恢复首答资格。skip 需要真实输入中的明确跳过或结束表达与宿主时间。dismiss 仅标记自述、上下文、非作答或技术问题，不生成作答。
 
 `revise` 使用 eventId、当前 localRevision、新 judgment 和 reason。远端规范版本由引擎保存，不允许模型填入。发生 conflict 后先查询远端当前状态，再作新修订决定；原意图不会自动更换远端版本后覆盖。
 

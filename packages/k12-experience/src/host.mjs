@@ -8,6 +8,7 @@ export const inject = ['credentials', 'storageDomain', 'workspaceRegistry', 'ses
 const ACTIONS = { me: '/me', mastery: '/mastery', gaps: '/diagnosis', papers: '/papers', paper: '/papers/',
   bank: '/bank/questions?type=single&limit=20' };
 const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,199}$/;
+const FAMILY_SOURCES = ['teachingProfile', 'mastery', 'gaps'];
 const MESSAGES = {
   input: '请求参数不正确。', network: '暂时无法连接学习站点，请稍后重试。',
   auth: '学习站点授权已失效，请由家长重新连接。', service: '学习站点服务暂不可用，请稍后重试。',
@@ -60,9 +61,15 @@ function studentOf(envelope, token) {
     ...(typeof student.currentBookId === 'string' && student.currentBookId ? { currentBookId: scrub(student.currentBookId, token) } : {}) };
 }
 function publicBinding(bindingId, record) {
-  const { linked, ...value } = record;
+  const { linked, teachingProfile, ...value } = record;
+  if (teachingProfile) {
+    value.studentName = teachingProfile.nickname;
+    delete value.currentBookId;
+    if (teachingProfile.currentBookId) value.currentBookId = teachingProfile.currentBookId;
+  }
   return structuredClone({ bindingId, ...value });
 }
+const fingerprint = (bindingId, token) => createHash('sha256').update(`${bindingId}\0${token}`).digest('hex');
 function paperReceipt(data, binding, token) {
   if (!object(data) || typeof data.paperId !== 'string' || !SAFE_ID.test(data.paperId) ||
       data.paperId.includes(token) || typeof data.answerLink !== 'string') fail('service');
@@ -84,6 +91,10 @@ async function canonical(directory) {
 export function createExperienceService({ bindings, requests, credentials, credentialKey, workspaceRegistry, sessionController,
   engine, workspaceRoot, sessionActivity = async () => [], fetch: siteFetch = globalThis.fetch }) {
   const pending = new Map();
+  const snapshots = new Map();
+  const attempts = new Map();
+  const rejected = new Map();
+  const revisions = new Map();
   let mutationTail = Promise.resolve();
   const mutate = work => {
     const result = mutationTail.then(work);
@@ -137,15 +148,79 @@ export function createExperienceService({ bindings, requests, credentials, crede
     if (row.running || (await sessionActivity(sessionId)).length) fail('active');
     return row;
   }
-  async function identity(sessionId, signal) {
-    const { binding } = await sessionBinding(sessionId, signal);
+  const scopeOf = access => JSON.stringify([access.binding.bindingId, access.binding.siteOrigin, access.binding.studentId,
+    access.binding.workspaceId, access.cwd, access.binding.updatedAt, access.revision, access.fingerprint]);
+  function rememberAttempts(access, sources) {
+    const scope = scopeOf(access);
+    const previous = attempts.get(access.binding.bindingId);
+    attempts.set(access.binding.bindingId, { scope, sources: { ...(previous?.scope === scope ? previous.sources : {}), ...sources } });
+  }
+  async function authorization(sessionId, signal) {
+    const { binding, cwd } = await sessionBinding(sessionId, signal);
     if (!binding) fail('unbound');
+    const revision = revisions.get(binding.bindingId) || 0;
     const credential = await credentials.readRecord(credentialKey(name, binding.bindingId));
     if (credential?.kind !== 'api-key' || !credential.key) fail('auth');
     const token = tokenValue(credential.key);
-    const me = await requestSite(binding.siteOrigin, token, ACTIONS.me, signal);
-    if (studentOf(me, token).id !== binding.studentId) fail('identity');
-    return { binding, token, me };
+    return { binding, cwd, token, revision, fingerprint: fingerprint(binding.bindingId, token) };
+  }
+  async function revalidate(sessionId, access, signal) {
+    const current = await authorization(sessionId, signal);
+    if (current.binding.bindingId !== access.binding.bindingId || current.binding.studentId !== access.binding.studentId ||
+        current.binding.siteOrigin !== access.binding.siteOrigin || current.binding.workspaceId !== access.binding.workspaceId ||
+        current.cwd !== access.cwd || current.binding.updatedAt !== access.binding.updatedAt || current.revision !== access.revision) fail('identity');
+    if (current.token !== access.token) fail('auth');
+    const record = bindings.get(access.binding.bindingId);
+    if (!record?.linked) fail('unbound');
+    if (record.studentId !== access.binding.studentId || record.siteOrigin !== access.binding.siteOrigin ||
+        record.workspaceId !== access.binding.workspaceId || record.workspacePath !== access.cwd ||
+        record.updatedAt !== access.binding.updatedAt || (revisions.get(access.binding.bindingId) || 0) !== access.revision) fail('identity');
+    return current;
+  }
+  async function identity(sessionId, signal, access) {
+    const me = await requestSite(access.binding.siteOrigin, access.token, ACTIONS.me, signal);
+    const observedAt = new Date().toISOString();
+    const student = studentOf(me, access.token);
+    if (student.id !== access.binding.studentId) fail('identity');
+    await revalidate(sessionId, access, signal);
+    return { ...access, me, student, observedAt };
+  }
+  async function saveProfile(access, student, observedAt) {
+    const record = bindings.get(access.binding.bindingId);
+    await bindings.put(access.binding.bindingId, { ...record, teachingProfile: { nickname: student.displayName,
+      currentBookId: student.currentBookId || null, observedAt, credentialFingerprint: access.fingerprint } });
+  }
+  function learnerView(resolved, sources, verified = true, authorityRef = null) {
+    const binding = resolved.binding;
+    if (!binding && ![...bindings.entries()].some(([, record]) =>
+      (process.platform === 'win32' ? record.workspacePath.toLowerCase() : record.workspacePath) === resolved.cwd)) fail('unbound');
+    return structuredClone({ mode: 'family', workspaceRef: resolved.cwd, bindingRef: binding?.bindingId || null, authorityRef,
+      identity: verified && binding ? { studentId: binding.studentId, siteOrigin: binding.siteOrigin, workspaceId: binding.workspaceId } : null,
+      sources });
+  }
+  function unavailable(resolved, reason) {
+    return learnerView(resolved, Object.fromEntries(FAMILY_SOURCES.map(source =>
+      [source, { availability: 'unavailable', observedAt: null, reason }])), false);
+  }
+  async function rejectSources(sessionId, access, reason, signal) {
+    return mutate(async () => {
+      const resolved = await sessionBinding(sessionId, signal);
+      const bindingId = resolved.binding?.bindingId;
+      if (bindingId && (!access || bindingId === access.binding.bindingId &&
+          resolved.binding.updatedAt === access.binding.updatedAt && (revisions.get(bindingId) || 0) === access.revision)) {
+        const credential = await credentials.readRecord(credentialKey(name, bindingId));
+        if (!access || !credential || credential.key === access.token) {
+          snapshots.delete(bindingId);
+          attempts.delete(bindingId);
+          const revision = (revisions.get(bindingId) || 0) + 1;
+          revisions.set(bindingId, revision);
+          if (access) rejected.set(bindingId, { scope: scopeOf({ ...access, revision }), reason });
+          const { teachingProfile, ...record } = bindings.get(bindingId);
+          if (teachingProfile) await bindings.put(bindingId, record);
+        }
+      }
+      return unavailable(await sessionBinding(sessionId, signal), reason);
+    });
   }
   const service = {
     async withBindingLock(operation) { return mutate(operation); },
@@ -179,6 +254,7 @@ export function createExperienceService({ bindings, requests, credentials, crede
         if (!draft || draft.expiresAt < Date.now()) { pending.delete(input.verificationId); fail('expired'); }
         if (draft.student.id !== input.expectedStudentId) fail('identity');
         const student = studentOf(await requestSite(draft.siteOrigin, draft.token, ACTIONS.me, signal), draft.token);
+        const observedAt = new Date().toISOString();
         if (student.id !== draft.student.id) fail('identity');
         const bindingId = `student-${createHash('sha256').update(`${draft.siteOrigin}\0${student.id}`).digest('hex').slice(0, 32)}`;
         const existing = bindings.get(bindingId);
@@ -202,11 +278,18 @@ export function createExperienceService({ bindings, requests, credentials, crede
         const ownership = await engine.call('experience_workspace_owner', { cwd: workspacePath });
         if (ownership?.legacyBound !== false) fail('conflict');
         const now = new Date().toISOString();
-        const record = { siteOrigin: draft.siteOrigin, studentId: student.id, studentName: student.displayName,
-          ...(student.currentBookId ? { currentBookId: student.currentBookId } : {}), workspaceId: target.id,
-          workspacePath, linked: true, createdAt: existing?.createdAt || now, updatedAt: now };
+        const legacyBookId = existing ? existing.currentBookId : student.currentBookId;
+        const record = { siteOrigin: draft.siteOrigin, studentId: student.id, studentName: existing?.studentName || student.displayName,
+          ...(legacyBookId ? { currentBookId: legacyBookId } : {}), workspaceId: target.id,
+          workspacePath, linked: true, createdAt: existing?.createdAt || now, updatedAt: now,
+          teachingProfile: { nickname: student.displayName, currentBookId: student.currentBookId || null, observedAt,
+            credentialFingerprint: fingerprint(bindingId, draft.token) } };
         await credentials.modifyRecord(credentialKey(name, bindingId), async () => ({ kind: 'api-key', key: draft.token }));
         await bindings.put(bindingId, record);
+        revisions.set(bindingId, (revisions.get(bindingId) || 0) + 1);
+        snapshots.delete(bindingId);
+        attempts.delete(bindingId);
+        rejected.delete(bindingId);
         pending.delete(input.verificationId);
         return { binding: publicBinding(bindingId, record), reused: Boolean(existing) };
       });
@@ -224,6 +307,79 @@ export function createExperienceService({ bindings, requests, credentials, crede
         familyWorkspace: [...bindings.entries()].some(([, record]) =>
           (process.platform === 'win32' ? record.workspacePath.toLowerCase() : record.workspacePath) === resolved.cwd),
         preferences: await engine.call('experience', { cwd: resolved.cwd, action: 'read' }) };
+    },
+    async learnerContext(input, signal) {
+      fields(input, ['sessionId', 'refresh'], ['sessionId']);
+      const sessionId = sessionInput(input.sessionId);
+      if (input.refresh !== undefined && typeof input.refresh !== 'boolean') fail('input');
+      let access;
+      try {
+        access = await authorization(sessionId, signal);
+        let verified;
+        let failure;
+        const fresh = {};
+        const failures = {};
+        const requested = {};
+        if (input.refresh) {
+          const attemptedAt = new Date().toISOString();
+          for (const source of FAMILY_SOURCES) requested[source] = { attemptedAt };
+          try {
+            verified = await identity(sessionId, signal, access);
+            const results = await Promise.allSettled(['mastery', 'gaps'].map(async source => {
+              requested[source].attemptedAt = new Date().toISOString();
+              const result = await requestSite(access.binding.siteOrigin, access.token, ACTIONS[source], signal);
+              return { data: scrub(result.data, access.token), observedAt: new Date().toISOString() };
+            }));
+            for (const [index, source] of ['mastery', 'gaps'].entries()) {
+              const result = results[index];
+              if (result.status === 'fulfilled') fresh[source] = result.value;
+              else if (result.reason?.code === 'k12/auth' || result.reason?.code === 'k12/identity') throw result.reason;
+              else failures[source] = result.reason?.code === 'k12/network' ? 'network' : 'service';
+            }
+          } catch (error) {
+            if (!['k12/network', 'k12/service'].includes(error.code)) throw error;
+            failure = error.code.slice(4);
+          }
+          for (const source of FAMILY_SOURCES) {
+            const reason = failures[source] || failure;
+            if (reason) requested[source].reason = reason;
+          }
+        }
+        return await mutate(async () => {
+          const current = await revalidate(sessionId, access, signal);
+          const scope = scopeOf(access);
+          const denied = rejected.get(access.binding.bindingId);
+          if (!input.refresh && denied?.scope === scope) return unavailable(current, denied.reason);
+          const previous = snapshots.get(access.binding.bindingId);
+          const cached = previous?.scope === scope ? previous.sources : {};
+          const previousAttempts = attempts.get(access.binding.bindingId);
+          const lastAttempts = { ...(previousAttempts?.scope === scope ? previousAttempts.sources : {}), ...requested };
+          if (verified) {
+            await saveProfile(access, verified.student, verified.observedAt);
+            fresh.teachingProfile = { data: { nickname: verified.student.displayName,
+              currentBookId: verified.student.currentBookId || null }, observedAt: verified.observedAt };
+            rejected.delete(access.binding.bindingId);
+          }
+          const profile = bindings.get(access.binding.bindingId)?.teachingProfile;
+          const teachingProfile = profile?.credentialFingerprint === access.fingerprint ?
+            { data: { nickname: profile.nickname, currentBookId: profile.currentBookId }, observedAt: profile.observedAt } : undefined;
+          const sources = Object.fromEntries(FAMILY_SOURCES.map(source => {
+            if (fresh[source]) return [source, { availability: 'live', ...fresh[source] }];
+            const snapshot = source === 'teachingProfile' ? teachingProfile : cached[source];
+            const attempt = lastAttempts[source];
+            return [source, { availability: snapshot ? 'cached' : attempt?.reason ? 'unavailable' : 'not_requested',
+              ...(snapshot || { observedAt: null }), ...(attempt?.reason ? attempt : {}) }];
+          }));
+          await revalidate(sessionId, access, signal);
+          if (input.refresh) rememberAttempts(access, requested);
+          snapshots.set(access.binding.bindingId, { scope, sources: { ...cached,
+            ...Object.fromEntries(Object.entries(fresh).filter(([source]) => source !== 'teachingProfile')) } });
+          return learnerView(current, sources, true, createHash('sha256').update(scope).digest('hex'));
+        });
+      } catch (error) {
+        if (!['k12/unbound', 'k12/auth', 'k12/identity'].includes(error.code)) throw error;
+        return rejectSources(sessionId, access, error.code.slice(4), signal);
+      }
     },
     async target(input, signal) {
       fields(input, ['bindingId', 'fromSessionId'], ['bindingId']);
@@ -258,7 +414,14 @@ export function createExperienceService({ bindings, requests, credentials, crede
       const bindingId = id(input.bindingId);
       return mutate(async () => {
         const existing = bindings.get(bindingId);
-        if (existing?.linked) await bindings.put(bindingId, { ...existing, linked: false, updatedAt: new Date().toISOString() });
+        if (existing?.linked) {
+          const { teachingProfile, ...record } = existing;
+          await bindings.put(bindingId, { ...record, linked: false, updatedAt: new Date().toISOString() });
+        }
+        revisions.set(bindingId, (revisions.get(bindingId) || 0) + 1);
+        snapshots.delete(bindingId);
+        attempts.delete(bindingId);
+        rejected.delete(bindingId);
         await credentials.deleteRecord(credentialKey(name, bindingId));
         return { unlinked: true, bindingId };
       });
@@ -269,10 +432,45 @@ export function createExperienceService({ bindings, requests, credentials, crede
       if (typeof input.action !== 'string' || !Object.hasOwn(ACTIONS, input.action)) fail('input');
       if (input.action === 'paper') id(input.resourceId);
       else if (input.resourceId !== undefined) fail('input');
-      const { binding, token, me } = await identity(sessionId, signal);
-      const result = input.action === 'me' ? me : await requestSite(binding.siteOrigin, token,
-        ACTIONS[input.action] + (input.action === 'paper' ? encodeURIComponent(input.resourceId) : ''), signal);
-      return scrub(result, token);
+      let access;
+      try {
+        access = await authorization(sessionId, signal);
+        const { binding, token, me, student, observedAt } = await identity(sessionId, signal, access);
+        const attemptedAt = new Date().toISOString();
+        let result;
+        let failure;
+        try {
+          result = input.action === 'me' ? me : await requestSite(binding.siteOrigin, token,
+            ACTIONS[input.action] + (input.action === 'paper' ? encodeURIComponent(input.resourceId) : ''), signal);
+        } catch (error) {
+          if (!['k12/network', 'k12/service'].includes(error.code)) throw error;
+          failure = error;
+        }
+        const resultObservedAt = new Date().toISOString();
+        const value = await mutate(async () => {
+          await revalidate(sessionId, access, signal);
+          await saveProfile(access, student, observedAt);
+          await revalidate(sessionId, access, signal);
+          rejected.delete(binding.bindingId);
+          rememberAttempts(access, { teachingProfile: { attemptedAt: observedAt },
+            ...(['mastery', 'gaps'].includes(input.action) ? { [input.action]: { attemptedAt,
+              ...(failure ? { reason: failure.code.slice(4) } : {}) } } : {}) });
+          if (!failure && ['mastery', 'gaps'].includes(input.action)) {
+            const scope = scopeOf(access);
+            const previous = snapshots.get(binding.bindingId);
+            snapshots.set(binding.bindingId, { scope, sources: { ...(previous?.scope === scope ? previous.sources : {}),
+              [input.action]: { data: scrub(result.data, token), observedAt: resultObservedAt } } });
+          }
+          return scrub(result, token);
+        });
+        if (failure) throw failure;
+        return value;
+      } catch (error) {
+        if (['k12/unbound', 'k12/auth', 'k12/identity'].includes(error.code)) {
+          await rejectSources(sessionId, access, error.code.slice(4), signal);
+        }
+        throw error;
+      }
     },
     async createPaper(input, signal) {
       fields(input, ['sessionId', 'title', 'questionIds', 'requestId'], ['sessionId', 'title', 'questionIds', 'requestId']);
@@ -284,8 +482,10 @@ export function createExperienceService({ bindings, requests, credentials, crede
       if (new Set(questionIds).size !== questionIds.length) fail('input');
       const body = { title: input.title, questionIds };
       const payloadHash = createHash('sha256').update(JSON.stringify(body)).digest('hex');
+      let access;
       return mutate(async () => {
-        const { binding, token } = await identity(sessionId, signal);
+        access = await authorization(sessionId, signal);
+        const { binding, token } = await identity(sessionId, signal, access);
         const key = createHash('sha256').update(`${binding.bindingId}\0${sessionId}\0${requestId}`).digest('hex');
         const fingerprint = createHash('sha256').update(`${binding.bindingId}\0${token}`).digest('hex');
         let recorded = requests.get(key);
@@ -306,6 +506,11 @@ export function createExperienceService({ bindings, requests, credentials, crede
         const receipt = paperReceipt(result.data, binding, token);
         await requests.put(key, { ...recorded, status: 'complete', result: receipt });
         return scrub({ ok: true, data: receipt }, token);
+      }).catch(async error => {
+        if (['k12/unbound', 'k12/auth', 'k12/identity'].includes(error.code)) {
+          await rejectSources(sessionId, access, error.code.slice(4), signal);
+        }
+        throw error;
       });
     },
   };

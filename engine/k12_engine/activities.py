@@ -452,38 +452,3 @@ def build(kind: str, args: dict) -> Page:
 def slug(text: str) -> str:
     ascii_part = re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
     return ascii_part[:24] or "page"
-
-
-ACTIVITY_PLAYBOOKS = ("concept", "diagnose", "solve", "practice")
-
-
-def suggest(kp_ids: list[str], playbook: str) -> dict | None:
-    """The one page route_task recommends for a learning task: the knowledge point's template, else a scheme quiz
-    for practice, a stepwise walk-through of a variant for solve, or a page written on the spot."""
-    if playbook not in ACTIVITY_PLAYBOOKS:
-        return None
-    if playbook == "practice":
-        return {"kind": "scheme", "what": (
-            "方案库小测，一次一题。选择题用 scheme `choice-text.text-single`，params 如 "
-            '{"question": "y=-2x+3 的图象经过哪个象限？", "options": ["A. 一二三", "B. 一二四"], "answer": "B", '
-            '"explanation": "k<0 下降，b>0 交 y 轴正半轴"}；填空用 `fill-keyboard`，params 如 '
-            '{"question": "直线 y=2x-4 与 x 轴交于点 (【2】, 0)", "keyboard": "numeric"}')}
-    for name, spec in TEMPLATES.items():
-        if set(spec["kps"]) & set(kp_ids):
-            return {"kind": "template", "template": name, "what": f"模板 `{name}`（{spec['name']}）"}
-    if playbook == "solve":
-        return {"kind": "template", "template": "stepwise", "what": "`stepwise` 分步讲解动画（讲一道同构变式题）"}
-    return {"kind": "custom", "what": "custom 现场页面（没有现成模板：写一个学生能拖动、点击并看到变化的小页面）"}
-
-
-def catalog_for(kp_ids: list[str], reference: Path) -> str:
-    """Lines route_task adds: the templates made for the task's knowledge points, then the general kinds."""
-    lines = []
-    for name, spec in TEMPLATES.items():
-        if set(spec["kps"]) & set(kp_ids):
-            lines.append(f"- template `{name}`（{spec['name']}）：{spec['use']}。params 例：{json.dumps(spec['example'], ensure_ascii=False)}")
-    lines.append(f"- template `stepwise`（分步讲解动画）：{TEMPLATES['stepwise']['use']}。")
-    lines.append("- scheme（方案库组件，需要联网）：" + "，".join(f"`{k}` {v['name']}" for k, v in schemes().items())
-                 + f"。参数格式：read {reference.as_posix()}")
-    lines.append("- custom：上面都不合适时，自己写一个自包含的 HTML 页面（不联网、不嵌其他页面）。")
-    return "\n".join(lines)

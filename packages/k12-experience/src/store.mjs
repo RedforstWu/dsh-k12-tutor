@@ -24,6 +24,8 @@ export async function openExperienceStore(storageDomain) {
         siteOrigin, studentId: identifier, studentName: text, currentBookId: text.optional(),
         workspaceId: identifier, workspacePath: text.refine(value => path.isAbsolute(value)),
         createdAt: text.datetime(), updatedAt: text.datetime(), linked: z.boolean(),
+        teachingProfile: z.object({ nickname: text, currentBookId: text.nullable(), observedAt: text.datetime(),
+          credentialFingerprint: request.credentialFingerprint }).strict().optional(),
       }).strict()),
       requests: domainTable(z.discriminatedUnion('status', [
         z.object({ ...request, status: z.literal('pending') }).strict(),

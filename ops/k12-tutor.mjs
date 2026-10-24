@@ -24,11 +24,11 @@ import readline from 'node:readline';
 import { fileURLToPath } from 'node:url';
 
 export const name = 'k12-tutor';
-export const inject = ['tools', 'agents', 'k12Engine', 'k12Experience', 'k12Practice'];
+export const inject = ['tools', 'agents', 'k12Engine'];
 
-export const TOOLS = ['route_task', 'math_check', 'learner_profile', 'make_activity', 'whiteboard', 'study_data', 'study_paper_create', 'experience_practice_read', 'present', 'read'];
-export const ENGINE_TOOLS = ['route_task', 'math_check', 'learner_profile', 'make_activity', 'whiteboard'];
-export const STUDY_TOOLS = ['study_record', 'study_query', 'study_assessment', 'study_practice'];
+export const TOOLS = ['route_task', 'math_check', 'learner_profile', 'make_activity', 'whiteboard', 'study_record', 'study_data', 'study_paper_create', 'experience_practice_read', 'present', 'read'];
+export const ENGINE_TOOLS = ['route_task', 'math_check', 'learner_profile', 'make_activity', 'whiteboard', 'study_record'];
+export const STUDY_TOOLS = ['study_query', 'study_assessment', 'study_practice'];
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const DEFAULTS = {
@@ -103,6 +103,7 @@ export class Engine {
 
 const text = { type: 'string', minLength: 1 };
 const object = (properties, required) => ({ type: 'object', properties, required, additionalProperties: false });
+const exerciseSlot = { type: 'string', pattern: '^(diagnose|practice|transfer|review|reflection)-[1-9][0-9]{0,3}$' };
 const scope = { oneOf: [object({ kind: { const: 'whole' } }, ['kind']), object({ kind: { const: 'reflection' } }, ['kind']), object({ kind: { const: 'step' }, stepKey: text }, ['kind', 'stepKey'])] };
 const judgment = { oneOf: [
   object({ state: { const: 'pending' }, reason: { enum: ['technical', 'incomplete', 'needs_review'] } }, ['state', 'reason']),
@@ -126,8 +127,8 @@ export const SCHEMAS = {
   study_record: {
     type: 'object',
     oneOf: [
-      object({ action: { const: 'open' }, taskRef: text, slot: { enum: ['diagnose-1', 'practice-1', 'transfer-1', 'review-1', 'reflection-1'] }, question: object({ type: { enum: ['single', 'multiple', 'blank', 'free'] }, stem: text, options: { type: ['array', 'null'], items: object({ key: text, text }, ['key', 'text']) }, questionId: text, referenceAnswer: { type: ['string', 'null'] } }, ['type', 'stem']), purpose: { enum: ['diagnosis', 'practice', 'transfer', 'review'] }, follows: text, taughtBy: text }, ['action', 'taskRef', 'slot', 'question', 'purpose']),
-      object({ action: { const: 'open' }, taskRef: text, slot: { enum: ['diagnose-1', 'practice-1', 'transfer-1', 'review-1', 'reflection-1'] }, assessment: { oneOf: [
+      object({ action: { const: 'open' }, taskRef: text, slot: exerciseSlot, question: object({ type: { enum: ['single', 'multiple', 'blank', 'free'] }, stem: text, options: { type: ['array', 'null'], items: object({ key: text, text }, ['key', 'text']) }, questionId: text, referenceAnswer: { type: ['string', 'null'] } }, ['type', 'stem']), purpose: { enum: ['diagnosis', 'practice', 'transfer', 'review'] }, follows: text, taughtBy: text }, ['action', 'taskRef', 'slot', 'question', 'purpose']),
+      object({ action: { const: 'open' }, taskRef: text, slot: exerciseSlot, assessment: { oneOf: [
         object({ templateId: { const: 'linear-function-value/v1' }, params: object({ k: { type:'integer', minimum:-20, maximum:20, not:{const:0} }, b:{type:'integer',minimum:-20,maximum:20}, x:{type:'integer',minimum:-20,maximum:20} }, ['k','b','x']) }, ['templateId','params']),
         ...['linear-equation/v1','linear-inequality/v1'].map(templateId => object({ templateId: {const:templateId}, params: object({ a:{type:'integer',minimum:-20,maximum:20,not:{const:0}}, b:{type:'integer',minimum:-20,maximum:20}, c:{type:'integer',minimum:-20,maximum:20}, ...(templateId.includes('inequality') ? {op:{enum:['<','>']}} : {}) }, templateId.includes('inequality') ? ['a','b','c','op'] : ['a','b','c']) }, ['templateId','params']))
       ] }, purpose: { enum: ['diagnosis','practice','transfer','review'] }, follows:text, taughtBy:text }, ['action','taskRef','slot','assessment','purpose']),
@@ -158,7 +159,10 @@ export const SCHEMAS = {
   route_task: {
     type: 'object',
     properties: {
-      action: { type: 'string', enum: ['start', 'reveal'], description: 'start: a new learning task; reveal: ask to reveal the answer of the open task' },
+      action: { type: 'string', enum: ['start', 'adapt', 'resume', 'finish', 'reveal'] },
+      taskRef: text, exerciseId: text, goal: text, method: { type: ['string', 'null'], enum: ['guided-hints', 'worked-example', 'self-explanation', 'compare-contrast', 'representation', 'retrieval', null] },
+      focus: { type: ['string', 'null'], maxLength: 500 }, nextObservation: { type: ['string', 'null'], maxLength: 500 },
+      evidenceRefs: { type: 'array', maxItems: 20, items: text },
       playbook: { type: 'string', enum: ['solve', 'concept', 'diagnose', 'practice', 'review-plan', 'writing', 'inquiry', 'emotion', 'boundary', 'figure-it-out'] },
       subject: { type: 'string', description: 'math, chinese, english, physics, chemistry, biology, history, geography, politics, other' },
       grade: { type: 'integer', minimum: 1, maximum: 12, description: 'only when the student just told you; otherwise the profile grade is used' },
@@ -166,7 +170,7 @@ export const SCHEMAS = {
       problem: { type: 'string', description: 'the problem text, transcribed from the photo if there is one' },
       knowledge_points: { type: 'array', items: text, description: 'knowledge point ids if you already know them' },
       assessment_context: { type: 'string', enum: ['none', 'homework', 'exam-prep', 'exam-live', 'unknown'] },
-      reason: { type: 'string', description: 'reveal only: why revealing now helps the student learn' },
+      reason: { type: 'string', description: 'adapt, finish or reveal: a short teaching reason, not internal reasoning' },
     },
     required: ['action'],
     additionalProperties: false,
@@ -188,35 +192,34 @@ export const SCHEMAS = {
     type: 'object',
     properties: {
       kind: { type: 'string', enum: ['template', 'scheme', 'custom'], description: 'template first, then a scheme component, custom only when neither fits' },
+      purpose: { type: 'string', minLength: 1, maxLength: 500, description: 'the concrete student action this page supports; create only when it adds a useful action' },
       template: { type: 'string', enum: ['resource-comparison', 'number-line', 'balance', 'kb-sliders', 'zero-product', 'inequality-line', 'substitution-table', 'stepwise'] },
       themeId: { type: 'string', enum: ['classic', 'voxel-builder', 'space-explorer'] },
-      scheme: { type: 'string', description: 'interaction-scheme id, e.g. choice-text.text-single (listed in route_task)' },
+      scheme: { type: 'string', description: 'interaction-scheme id, e.g. choice-text.text-single (listed in references/activities.md)' },
       style: { type: 'string', enum: ['cartoon', 'retro-industrial', 'urban-tech'] },
-      params: { type: 'object', additionalProperties: true, description: 'template or scheme parameters; formats in route_task and references/activities.md' },
+      params: { type: 'object', additionalProperties: true, description: 'template or scheme parameters; formats in references/activities.md' },
       html: { type: 'string', description: 'custom: a self-contained page (inline CSS/JS, no network, no iframes)' },
       title: { type: 'string' },
     },
-    required: ['kind'],
+    required: ['kind', 'purpose'],
     additionalProperties: false,
   },
   learner_profile: {
     type: 'object',
     properties: {
       action: { type: 'string', enum: ['read', 'update'] },
+      refresh: { type: 'boolean', description: 'read: explicitly refresh current verified sources; unavailable is not empty history' },
       updates: {
         type: 'array',
         items: {
-          type: 'object',
-          properties: {
-            op: { type: 'string', enum: ['basics', 'observe', 'misconception', 'preference', 'summary'] },
-            grade: { type: 'integer' }, textbooks: { type: 'object', additionalProperties: { type: 'string' } }, nickname: { type: 'string' },
-            kp: { type: 'string', description: 'observe: knowledge point id, e.g. math/junior:linear-eq-solve' },
-            correct: { type: 'boolean' }, independent: { type: 'boolean', description: 'observe: answered with no hint and no reveal' },
-            id: { type: 'string', description: 'misconception id' }, status: { type: 'string', enum: ['active', 'resolved'] },
-            key: { type: 'string' }, value: { type: 'string' }, evidence: { type: 'string' }, text: { type: 'string' },
-          },
-          required: ["op"],
-          additionalProperties: false,
+          oneOf: [
+            object({ op: { const: 'basics' }, grade: { type: 'integer', minimum: 1, maximum: 12 },
+              textbooks: { type: 'object', additionalProperties: { type: 'string' } }, nickname: text }, ['op']),
+            object({ op: { const: 'observation' }, kind: { enum: ['fact', 'hypothesis'] }, kp: text,
+              text, evidenceRefs: { type: 'array', items: text, minItems: 1, maxItems: 10 } }, ['op', 'kind', 'text', 'evidenceRefs']),
+            object({ op: { const: 'preference' }, key: text, value: text }, ['op', 'key', 'value']),
+            object({ op: { const: 'summary' }, text }, ['op', 'text']),
+          ],
         },
       },
     },
@@ -224,6 +227,19 @@ export const SCHEMAS = {
     additionalProperties: false,
   },
 };
+
+SCHEMAS.study_record.oneOf[0].properties.assessmentContext = object({
+  value: { enum: ['none','homework','exam-prep','exam-live','unknown'] }, responseRef: text,
+}, ['value','responseRef']);
+
+SCHEMAS.route_task.oneOf = [
+  ['start', ['goal','playbook','method','subject','grade','topic','problem','knowledge_points','assessment_context'], ['action','playbook']],
+  ['adapt', ['taskRef','playbook','method','focus','nextObservation','reason','evidenceRefs'], ['action','taskRef','reason']],
+  ['resume', ['taskRef','exerciseId'], ['action','taskRef']],
+  ['finish', ['taskRef','reason'], ['action','taskRef','reason']],
+  ['reveal', ['taskRef','exerciseId','reason','evidenceRefs'], ['action','reason']],
+].map(([action, keys, required]) => object({ action: { const: action },
+  ...Object.fromEntries(keys.map(key => [key, SCHEMAS.route_task.properties[key]])) }, required));
 
 // Closed public entry: no free task text, identity or proof fields.
 SCHEMAS.study_assessment = object({
@@ -234,20 +250,20 @@ SCHEMAS.study_assessment = object({
 
 SCHEMAS.study_practice = { type: 'object', oneOf: [
   object({ action: { const: 'issue' }, assessment: SCHEMAS.study_assessment.properties.assessment,
-    slot: SCHEMAS.study_assessment.properties.slot, purpose: SCHEMAS.study_assessment.properties.purpose }, ['action','assessment','slot','purpose']),
+    slot: SCHEMAS.study_assessment.properties.slot, purpose: SCHEMAS.study_assessment.properties.purpose, taskRef: text }, ['action','assessment','slot','purpose']),
   object({ action: { const: 'read' }, taskId: text }, ['action','taskId']),
   object({ action: { const: 'grade' }, taskId: text, judgment }, ['action','taskId','judgment']),
 ] };
 const DESCRIPTIONS = {
-  study_practice: 'Issue a practice-only web task and share returned answerUrl verbatim. Wait for its host submission notification, then read and grade with that exact taskId (never recordId), and continue on the existing whiteboard. Save grading for submitted answers even when practice-only or evidence_incomplete: exclusion from mastery does not prohibit grading. Ordinary web tasks stay practice-only; only a host-issued assessment with a server-verified certificate may qualify.',
+  study_practice: 'Issue a practice-only web task and share returned answerUrl verbatim. Wait for its host submission notification, then read and grade with that exact taskId (never recordId). Continue only if still on that task and exercise; otherwise save for later review without changing focus or playing a board. Save grading even when practice-only or evidence_incomplete; exclusion from mastery does not prohibit grading. Only a host-issued assessment with a server-verified certificate may qualify.',
   study_assessment: 'Start independent assessment directly before any read, route or explanation. Send returned deliveryText exactly, alone, then wait for the student answer.',
   study_record: 'Record a confirmed exercise or classify a captured student response. Use only responseRef returned by host capture. Never supply student identity or answer text.',
   study_query: 'Read bound student learning records. Unavailable history is not empty history.',
   whiteboard: 'When the student interrupts or asks to pause, use pause to keep the board visible. Use close only when explicitly asked to close it. append only queues new steps; open resumes a board and does not accept steps. Before describing visible content or playback progress, call read: steps/applied describe delivered board content; pending is not displayed. Stopping or resuming does not turn queued steps into displayed steps. Never claim the student heard the speech. Read references/whiteboard.md for shape fields. Reuse an id to replace a shape; remove deletes it. No HTML, URLs or scripts.',
-  route_task: 'Start a learning task (once per task, not per message): returns the playbook, the knowledge points with their misconceptions, and the answer policy. action=reveal asks whether the answer of the open task may be revealed now.',
+  route_task: 'Start a sustained learning goal; ordinary short definitions need no task. Adapt changes guidance while preserving the exercise and its evidence. Method is optional; select a supported method from student needs and feedback. Resume a prior task or exercise; finish records why learning stops. Reveal requires this exercise’s recorded responseRefs and a teaching reason; homework and exam restrictions remain.',
   math_check: 'Exact math with sympy. Compute the right result before you explain, and check a student step or answer. Results are for you, not to paste to the student.',
-  make_activity: 'Make an interactive web page for the open task (a template filled with parameters, an interaction-scheme quiz component, or a custom page) and write it into the student workspace. Then deliver it with present.',
-  learner_profile: 'Read or update the structured learner profile. Record evidence, not verdicts: observe each answer (correct, independent) and the profile computes mastered / not mastered / uncertain. Also misconceptions, preferences, short learning summaries. Never store names, contact details or school.',
+  make_activity: 'Create a page only when a concrete student action benefits from it. State its purpose; task and exercise links derive from the current host state. Use conversation or the existing board when sufficient. Read references/activities.md for formats, then deliver the created page with present. Current exercise protections apply.',
+  learner_profile: 'Read the same sourced learner context used in automatic guidance. Sources separately report live/cached/unavailable/absent/not_requested and observation times. Official facts retain the source meaning; historical local mastery is not official. Update local observations with ledger evidenceRefs, preferences or a short summary. Record answers and revisions only with study_record. Never store contact details or school.',
 };
 
 /** Denial reason for one tool call, or undefined. Never throws. */
@@ -323,7 +339,7 @@ function assessmentDelivery(raw) {
     const args = JSON.parse(raw);
     // Reject duplicate keys and escaped/extra content in the visible raw argument string.
     if (JSON.stringify(args) !== raw.replace(/\s/g, '') || !exactKeys(args, ['assessment','slot','purpose'])) return null;
-    if (!SCHEMAS.study_assessment.properties.slot.enum.includes(args.slot)
+    if (!new RegExp(exerciseSlot.pattern).test(args.slot)
       || !SCHEMAS.study_assessment.properties.purpose.enum.includes(args.purpose)
       || !exactKeys(args.assessment, ['templateId','params'])) return null;
     const {templateId, params:p} = args.assessment;
@@ -441,59 +457,72 @@ export function apply(ctx, config = {}) {
   const engine = ctx.k12Engine;
   const engineDir = config.engineDir || DEFAULTS.engineDir;
 
-  ctx.tools.register({
-    name: 'experience_practice_read', description: '读取本会话最近一次原生资源练习及宿主核算的结果，仅作辅导证据，不作为正式成绩或独立掌握证明。',
+  let experience;
+  const registerPractice = service => ctx.tools.register({
+    name: 'experience_practice_read', description: '读取本会话最近一次原生资源练习，仅作本地辅导证据，不作为正式成绩。',
     parameters: SCHEMAS.experience_practice_read,
     output: { schema: { type: 'object', additionalProperties: true }, render: (_args, value) => [{ type: 'text', text: JSON.stringify(value) }] },
     execute: async (args, exec) => {
       if (!args || Object.keys(args).length) throw new Error('unexpected practice field');
       exec.signal?.throwIfAborted();
-      return { practice: await ctx.k12Practice.latest({ sessionId: where(exec).session }) };
+      return { practice: await service.latest({ sessionId: where(exec).session }) };
     },
   });
-  ctx.tools.register({
-    name: 'study_paper_create', description: '学生明确要做正式练习时，从站点已有选择题 ID 创建试卷。重试保持 requestId。返回链接需家庭网页登录；仅站点真实提交和服务端批改才形成成绩。',
-    parameters: SCHEMAS.study_paper_create,
-    output: { schema: { type: 'object', additionalProperties: true }, render: (_args, value) => [{ type: 'text', text: JSON.stringify(value) }] },
-    execute: async (args, exec) => {
-      if (!args || Object.keys(args).some(key => !['title', 'questionIds', 'requestId'].includes(key))) throw new Error('unexpected paper field');
-      exec.signal?.throwIfAborted();
-      return ctx.k12Experience.createPaper({ ...args, sessionId: where(exec).session }, exec.signal);
-    },
-  });
-
-  ctx.tools.register({
-    name: 'study_data',
-    description: '读取当前学生在学习站点的身份、掌握度、缺口和试卷。身份由会话绑定确定。未连接时请家长在学习空间配置；此工具不写入成绩。',
-    parameters: SCHEMAS.study_data,
-    output: { schema: { type: 'object', additionalProperties: true }, render: (_args, value) => [{ type: 'text', text: JSON.stringify(value) }] },
-    execute: async (args, exec) => {
-      if (!args || Object.keys(args).some(key => !['action', 'resourceId'].includes(key))) throw new Error('unexpected study field');
-      exec.signal?.throwIfAborted();
-      return ctx.k12Experience.readStudy({ ...args, sessionId: where(exec).session }, exec.signal);
-    },
-  });
+  const registerExperience = service => {
+    experience = service;
+    ctx.tools.register({
+      name: 'study_paper_create', description: '学生明确要做正式练习时，从站点已有题目创建试卷。仅站点真实提交和服务端批改才形成成绩。',
+      parameters: SCHEMAS.study_paper_create,
+      output: { schema: { type: 'object', additionalProperties: true }, render: (_args, value) => [{ type: 'text', text: JSON.stringify(value) }] },
+      execute: async (args, exec) => {
+        if (!args || Object.keys(args).some(key => !['title', 'questionIds', 'requestId'].includes(key))) throw new Error('unexpected paper field');
+        exec.signal?.throwIfAborted();
+        return service.createPaper({ ...args, sessionId: where(exec).session }, exec.signal);
+      },
+    });
+    ctx.tools.register({
+      name: 'study_data', description: '读取当前学生站点学情；身份由会话绑定确定，此工具不写成绩。',
+      parameters: SCHEMAS.study_data,
+      output: { schema: { type: 'object', additionalProperties: true }, render: (_args, value) => [{ type: 'text', text: JSON.stringify(value) }] },
+      execute: async (args, exec) => {
+        if (!args || Object.keys(args).some(key => !['action', 'resourceId'].includes(key))) throw new Error('unexpected study field');
+        exec.signal?.throwIfAborted();
+        const value = await service.readStudy({ ...args, sessionId: where(exec).session }, exec.signal);
+        await engine.call('learner_context_dirty', where(exec));
+        return value;
+      },
+    });
+  };
+  if (ctx.inject) {
+    ctx.inject(['k12Experience'], scope => { registerExperience(scope.k12Experience); });
+    ctx.inject(['k12Practice'], scope => { registerPractice(scope.k12Practice); });
+  } else {
+    if (ctx.k12Experience) registerExperience(ctx.k12Experience);
+    if (ctx.k12Practice) registerPractice(ctx.k12Practice);
+  }
 
   const studyEnabled = config.studyEnabled === true;
   engine?.configureStudy?.(config);
   const enabledFor = async session => studyEnabled && (engine?.studyAllowed
     ? await engine.studyAllowed(session?.header?.cwd, session?.id) : studyWorkspaceAllowed(session?.header?.cwd, config.studyWorkspaces));
-  const studyInstructions = `[学习记录已启用] 网页练习调用 study_practice(action=issue,assessment,slot,purpose)，将返回的宿主 answerUrl 原样作为链接给学生，不自行改写为学习站链接。发题后等待网页提交的宿主通知，无需让学生手动读取或点击继续；收到通知后 read 和 grade 都使用通知中的 taskId（不是 recordId），读取并批改同一网页提交；practice_only 或证据不完整只排除掌握度，仍须保存批改，再用现有白板继续讲解。宿主通知不是学生作答，不能保存为聊天答案。普通网页练习不计掌握度；宿主界面发起的独立测评须由服务器核验证据后才可能合格，不能自行声称独立完成或另用 study_record 保存。独立评估直接调用 study_assessment({assessment:{templateId,params},slot,purpose})，之前不要 read、route_task、其他工具、开场白或提示；返回 deliveryText 后原样单独发给学生，等待真实回答。普通辅导每道练习先 route_task，再在向学生提问前调用 study_record(action=open)。保存 exerciseId；answer 只用真实输入的 responseRef、answerSlot=whole、scope={kind:"whole"}、judgment={state:"graded",correct,errorCause}（正确时 errorCause=null），不确定时 judgment={state:"pending",reason:"needs_review"}。不能补开练习或伪造作答。dismiss 的 reason 仅可为 self_report、not_answer、context、technical。普通辅导详细说明见 ${path.join(path.dirname(engineDir), 'skills', 'tutor-mode', 'references', 'study-records.md')}。`;
+  const studyInstructions = `[学习记录已启用] 网页练习调用 study_practice(action=issue,assessment,slot,purpose)，将返回的宿主 answerUrl 原样作为链接给学生，不自行改写为学习站链接。发题后等待网页提交的宿主通知，无需让学生手动读取或点击继续；收到通知后 read 和 grade 都使用通知中的 taskId（不是 recordId），读取并批改同一网页提交；practice_only 或证据不完整只排除掌握度，仍须保存批改，当前仍在原任务与原题时才继续现有白板；已切换时保存待回顾，不切换焦点或播放。宿主通知不是学生作答，不能保存为聊天答案。普通网页练习不计掌握度；宿主界面发起的独立测评须由服务器核验证据后才可能合格，不能自行声称独立完成或另用 study_record 保存。独立评估直接调用 study_assessment({assessment:{templateId,params},slot,purpose})，之前不要 read、route_task、其他工具、开场白或提示；返回 deliveryText 后原样单独发给学生，等待真实回答。普通持续目标先 route_task(action=start)；同目标新题在向学生提问前调用 study_record(action=open)，新槽位如 practice-2，不重建任务。题目须在可记录作答前开立。保存 exerciseId；answer 只用真实输入的 responseRef、answerSlot=whole 或 step-N 及对应 scope、judgment={state:"graded",correct,errorCause}（正确时 errorCause=null），不确定时 judgment={state:"pending",reason:"needs_review"}。不能补开练习或伪造作答。dismiss 的 reason 仅可为 self_report、not_answer、context、technical。普通辅导详细说明见 ${path.join(path.dirname(engineDir), 'skills', 'tutor-mode', 'references', 'study-records.md')}。`;
+  const localInstructions = '[本地题目账本] 需要记录作答时先建立持续任务。返回的 exercise 若 contextOnly=false，沿用其 exerciseId 记录后续真实作答；尚无具体题目身份或题意改变时，才在提问前 study_record(action=open,taskRef,slot,question,purpose)。原题换讲法用 adapt，回到旧题用 resume；不能为已收到的回答补开题。同一目标可用 practice-1、practice-2 等槽位；同槽位重试复用身份，改题用新槽位。answer 仅使用真实输入 responseRef；分步用 answerSlot=step-N 和 scope={kind:"step",stepKey:"step-N"}。同一步真实重答使用新 responseRef，改判用 revise；自述/闲聊/技术失败用 dismiss，不制造答错。这里的记录是 local_only，不是正式成绩，不启用远端绑定或上传。';
   const notificationIds = async session => {
-    const value = await engine.call('study_notification_ids', { cwd: session.header.cwd, session: session.id });
+    const value = await engine.call('exercise_notification_ids', { cwd: session.header.cwd, session: session.id });
     if (!Array.isArray(value?.requestIds) || value.requestIds.some(id => typeof id !== 'string' || !id)) throw new Error('K12_GUARD: 无法核验宿主通知。');
     return new Set(value.requestIds);
   };
-  const capture = async (session, incoming = [], trustedNotifications) => engine.call('study_capture', {
-    cwd: session.header.cwd, session: session.id,
-    envelopes: hostEvidence(session, incoming, trustedNotifications ?? await notificationIds(session)), scan: hostScan(session),
-  });
+  const capture = async (session, incoming = [], trustedNotifications, remote) => engine.call(
+    (remote ?? await enabledFor(session)) ? 'study_capture' : 'exercise_capture', {
+      cwd: session.header.cwd, session: session.id,
+      envelopes: hostEvidence(session, incoming, trustedNotifications ?? await notificationIds(session)), scan: hostScan(session),
+    });
   for (const tool of [...ENGINE_TOOLS, ...(studyEnabled ? STUDY_TOOLS : [])]) {
     ctx.tools.register({
       name: tool,
       description: tool === 'whiteboard' ? DESCRIPTIONS[tool].replace('references/whiteboard.md',
         path.join(path.dirname(engineDir), 'skills', 'tutor-mode', 'references', 'whiteboard.md')) : DESCRIPTIONS[tool],
-      parameters: SCHEMAS[tool],
+      parameters: tool === 'study_record' ? { type: 'object', oneOf: SCHEMAS.study_record.oneOf.filter((_, index) => index !== 1) } : SCHEMAS[tool],
       output: {
         schema: { type: 'object', additionalProperties: true },
         render: (_args, value) => [{ type: 'text', text: typeof value?.text === 'string'
@@ -503,15 +532,16 @@ export function apply(ctx, config = {}) {
         exec.signal?.throwIfAborted();
         const enabled = studyEnabled ? await enabledFor(exec.agent.session) : false;
         if (STUDY_TOOLS.includes(tool) && !enabled) throw new Error('K12_GUARD: 当前工作区未启用此学习记录入口。已连接家庭学习空间时请使用 study_data 或 study_paper_create。');
-        if (enabled) await capture(exec.agent.session);
-        const result = await engine.call(tool, { ...args, ...where(exec), ...(tool === 'whiteboard' ? { receipt: exec.callId } : {}) });
+        if (tool === 'study_record' && args.assessment) throw new Error('K12_GUARD: 模板测评使用独立入口。');
+        if (['study_record', 'study_assessment', 'study_practice', 'route_task'].includes(tool)) await capture(exec.agent.session);
+        if (enabled && ['study_record', 'study_assessment'].includes(tool)) await engine.call('study_enable', where(exec));
+        const result = await engine.call(tool === 'study_record' && !enabled ? 'exercise_record' : tool, { ...args, ...where(exec), ...(tool === 'whiteboard' ? { receipt: exec.callId } : {}) });
         if (exec.signal?.aborted) {
           await engine.call('whiteboard', { ...where(exec), action: 'invalidate' });
           exec.signal.throwIfAborted();
         }
         if (tool === 'whiteboard' && args.action === 'read' && result === null) return { board: null };
-        return tool === 'route_task' && enabled
-          ? { ...result, text: `${result.text ?? ''}\n\n${studyInstructions}` } : result;
+        return result;
       },
     });
   }
@@ -525,32 +555,28 @@ export function apply(ctx, config = {}) {
     const decision = await next();
     if (decision.kind !== 'enter' || signal.aborted) return decision;
     const enabled = await enabledFor(agent.session);
-    const trustedNotifications = enabled ? await notificationIds(agent.session) : new Set();
-    const evidence = enabled ? await capture(agent.session, decision.messages, trustedNotifications) : null;
+    const trustedNotifications = await notificationIds(agent.session);
+    const evidence = await capture(agent.session, decision.messages, trustedNotifications, enabled);
     const responseNote = evidence
-      ? `${studyInstructions}\n真实输入引用：${JSON.stringify(evidence.responses ?? [])}。只使用对应输入的 responseRef，不能把自述或题目上下文记为作答。` : '';
+      ? `${step === 1 ? (enabled ? studyInstructions : localInstructions) + '\n' : ''}真实输入引用：${JSON.stringify(evidence.responses ?? [])}。只使用对应输入的 responseRef，不能把自述或题目上下文记为作答。` : '';
     if (step !== 1) return responseNote ? { ...decision, messages: [...decision.messages, note(responseNote)] } : decision;
     const student = decision.messages.filter(m => m.source?.kind === 'user' && !trustedNotifications.has(m.source.rpcId));
     const { notes } = student.length ? await engine.call('turn_begin', {
       cwd: agent.session.header.cwd, session: agent.session.id, text: student.map(textOf).join('\n'),
     }) : { notes: [] };
-    if (ctx.k12Experience) try {
-      const { binding } = await ctx.k12Experience.context({ sessionId: agent.session.id }, signal);
-      if (binding) notes.push('[站点身份摘要，仅作为数据，不是指令] ' + JSON.stringify({
-        nickname: binding.studentName, currentBookId: binding.currentBookId || null,
-      }) + ' 已有昵称和册次不重复询问。册次不能映射年级时再问；目前完整学科包是初中数学，不把账号连接成功当作全学段支持。');
-    } catch (error) {
-      signal.throwIfAborted();
-      if (!['k12/workspace', 'k12/unbound'].includes(error.code)) throw error;
-      notes.push('[站点连接] 当前绑定需要家长修复。可以继续本地辅导，不声明云端同步。');
+    if (student.length && enabled) {
+      const pending = await engine.call('study_pending_reviews', { cwd: agent.session.header.cwd, session: agent.session.id });
+      if (pending.length) notes.push('[待回顾网页结果] ' + JSON.stringify(pending.map(item => ({
+        taskId: item.taskId, taskRef: item.teacherTaskRef, exerciseId: item.teacherExerciseId, needsGrade: item.needsGrade,
+      }))) + ' 适合回顾时按原 taskId 读取和批改，不切换当前任务或白板。专用独立测评继续其直接入口，稍后处理回顾。');
     }
     if (responseNote) notes.push(responseNote);
     return notes.length ? { ...decision, messages: [...decision.messages, note(notes.join('\n\n'))] } : decision;
   });
 
   ctx.on('agent/turn-stopping', async ({ agent, turn }) => {
+    await capture(agent.session);
     if (await enabledFor(agent.session)) {
-      await capture(agent.session);
       await engine.call('study_flush', { cwd: agent.session.header.cwd, session: agent.session.id });
     }
     const reply = lastReply(agent.session, turn);

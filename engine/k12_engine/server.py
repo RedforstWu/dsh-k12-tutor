@@ -10,7 +10,7 @@ import json
 import sys
 import traceback
 
-from . import ops
+from . import learner, ops
 from .study_transport import request_credentials
 
 
@@ -20,7 +20,9 @@ def handle(line: str) -> dict:
     except json.JSONDecodeError as exc:
         return {"id": None, "ok": False, "error": f"bad request: {exc}"}
     rid = request.get("id")
-    credential_context = request_credentials.set(request.get("transportContext"))
+    private_context = request.get('transportContext') or {}
+    credential_context = request_credentials.set(private_context if private_context.get('credentialRef') else None)
+    learner_context = learner.request_context.set(private_context.get('learnerContext'))
     try:
         return {"id": rid, "ok": True, "value": ops.dispatch(request.get("op"), request.get("args") or {})}
     except ops.OpError as exc:
@@ -31,6 +33,7 @@ def handle(line: str) -> dict:
 
     finally:
         request_credentials.reset(credential_context)
+        learner.request_context.reset(learner_context)
 
 def serve() -> None:
     for line in sys.stdin:

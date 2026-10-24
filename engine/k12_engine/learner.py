@@ -8,19 +8,22 @@ from __future__ import annotations
 import copy
 import datetime as dt
 import json
+import os
 import re
+from contextvars import ContextVar
 from pathlib import Path
 
 from . import subjects
 
 SCHEMA = "k12-learner/1"
-MC_STATUS = ("active", "resolved")
 PREFERENCES = ("pace", "explanation", "encouragement", "language", "notes")
-KEEP_EVIDENCE = 3
 KEEP_OBSERVATIONS = 6
 KEEP_SUMMARIES = 12
 MAX_TEXT = 300
-REVIEW_STEPS = (1, 3, 7, 14, 30)
+SOURCE_NAMES = ('teachingProfile', 'mastery', 'gaps')
+AVAILABILITY = ('live', 'cached', 'unavailable', 'absent', 'not_requested')
+request_context = ContextVar('learner_request_context', default=None)
+REFRESH_AFTER = dt.timedelta(minutes=15)
 QUALIFIED = re.compile(r"^(?P<subject>[a-z]+)/(?P<stage>[a-z]+):(?P<id>[a-z0-9]+(?:-[a-z0-9]+)*)$")
 PII = [
     (re.compile(r"(?<!\d)1[3-9]\d{9}(?!\d)"), "手机号"),
@@ -34,14 +37,10 @@ class LearnerError(ValueError):
     pass
 
 
-def today() -> dt.date:
-    return dt.date.today()
-
-
 def default(learner_id: str) -> dict:
     return {"schema": SCHEMA, "learner_id": learner_id, "nickname": None, "grade": None, "textbooks": {},
             "mastery": {}, "misconceptions": {}, "preferences": {}, "review": [], "summaries": [],
-            "updated": None}
+            "observations": [], "updated": None}
 
 
 def load(path: Path, learner_id: str) -> dict:
@@ -84,17 +83,6 @@ def check_id(qualified: str, kind: str) -> str:
     return qualified
 
 
-def mastery_state(observations: list[dict]) -> str:
-    """Code decides the label from evidence. Mastered needs the last two answers correct and unaided;
-    not mastered needs the last two wrong; everything else, including a single answer, is uncertain."""
-    last = observations[-2:]
-    if len(last) == 2 and all(o["correct"] and o["independent"] for o in last):
-        return "mastered"
-    if len(last) == 2 and not any(o["correct"] for o in last):
-        return "not_mastered"
-    return "uncertain"
-
-
 EDITION_NAMES = {"人教": "pep-2024", "人教版": "pep-2024", "人民教育出版社": "pep-2024", "pep": "pep-2024"}
 
 
@@ -122,19 +110,6 @@ def edition_id(subject: str, edition: str, grade: int | None) -> str:
                        "（学生说的版本不在列表里时，记在 preference notes 里，不写 textbooks）")
 
 
-def _evidence(entry: dict, text: str, session: str, now: str) -> None:
-    entry.setdefault("evidence", []).append({"at": now, "session": session, "note": text})
-    entry["evidence"] = entry["evidence"][-KEEP_EVIDENCE:]
-
-
-def _schedule(profile: dict, kp: str, on: dt.date, success: bool) -> None:
-    current = next((r for r in profile["review"] if r["kp"] == kp), None)
-    step = 0 if current is None or not success else min(current["step"] + 1, len(REVIEW_STEPS) - 1)
-    profile["review"] = [r for r in profile["review"] if r["kp"] != kp]
-    profile["review"].append({"kp": kp, "step": step, "due": (on + dt.timedelta(days=REVIEW_STEPS[step])).isoformat()})
-    profile["review"].sort(key=lambda r: r["due"])
-
-
 def apply(profile: dict, updates: list[dict], session: str, now: dt.datetime | None = None) -> tuple[dict, list[str]]:
     """Validate every op first, then apply all of them; one bad op rejects the whole batch."""
     if not isinstance(updates, list) or not updates:
@@ -147,6 +122,11 @@ def apply(profile: dict, updates: list[dict], session: str, now: dt.datetime | N
         if not isinstance(u, dict):
             raise LearnerError(f"updates[{i}] must be an object")
         op = u.get("op")
+        fields = {'basics': {'op', 'grade', 'textbooks', 'nickname'},
+                  'observation': {'op', 'kind', 'kp', 'text', 'evidenceRefs'},
+                  'preference': {'op', 'key', 'value'}, 'summary': {'op', 'text'}}
+        if op not in fields or set(u) - fields[op]:
+            raise LearnerError('updates must be basics, observation, preference or summary; answer facts belong in study_record')
         if op == "basics":
             if "grade" in u:
                 if not isinstance(u["grade"], int) or not 1 <= u["grade"] <= 12:
@@ -158,30 +138,16 @@ def apply(profile: dict, updates: list[dict], session: str, now: dt.datetime | N
             if u.get("nickname"):
                 out["nickname"] = screen(u["nickname"], "nickname")[:12]
             done.append("basics")
-        elif op == "observe":
-            kp = check_id(u.get("kp"), "kp")
-            if not isinstance(u.get("correct"), bool) or not isinstance(u.get("independent"), bool):
-                raise LearnerError("observe needs correct (true/false) and independent (true/false: no hint, no reveal)")
-            entry = out["mastery"].setdefault(kp, {"state": "uncertain", "observations": []})
-            entry["observations"] = (entry["observations"] + [{"at": stamp, "session": session, "correct": u["correct"],
-                                     "independent": u["independent"], "note": screen(u.get("evidence", ""), "evidence")}])[-KEEP_OBSERVATIONS:]
-            previous, entry["state"] = entry["state"], mastery_state(entry["observations"])
-            entry["updated"] = stamp
-            if entry["state"] == "mastered":
-                _schedule(out, kp, now.date(), success=previous == "mastered")
-            elif entry["state"] == "not_mastered":
-                out["review"] = [r for r in out["review"] if r["kp"] != kp]
-            done.append(f"observe {kp}: {entry['state']}")
-        elif op == "misconception":
-            mc = check_id(u.get("id"), "misconception")
-            if u.get("status") not in MC_STATUS:
-                raise LearnerError(f"status must be one of {', '.join(MC_STATUS)}")
-            entry = out["misconceptions"].setdefault(mc, {"status": "active", "seen": 0})
-            entry["status"] = u["status"]
-            entry["seen"] += u["status"] == "active"
-            entry["updated"] = stamp
-            _evidence(entry, screen(u.get("evidence", ""), "evidence"), session, stamp)
-            done.append(f"misconception {mc}={u['status']}")
+        elif op == "observation":
+            refs = u.get('evidenceRefs')
+            if u.get('kind') not in ('fact', 'hypothesis') or not isinstance(refs, list) or not 1 <= len(refs) <= 10 or any(not isinstance(ref, str) or not ref for ref in refs):
+                raise LearnerError('observation needs kind=fact/hypothesis and ledger evidenceRefs')
+            observation = {'at': stamp, 'session': session, 'kind': u['kind'],
+                           'text': screen(u.get('text', ''), 'text'), 'evidenceRefs': list(dict.fromkeys(refs))}
+            if u.get('kp'):
+                observation['kp'] = check_id(u['kp'], 'kp')
+            out['observations'] = (out.get('observations', []) + [observation])[-KEEP_OBSERVATIONS:]
+            done.append('observation')
         elif op == "preference":
             if u.get("key") not in PREFERENCES:
                 raise LearnerError(f"preference key must be one of {', '.join(PREFERENCES)}")
@@ -191,39 +157,211 @@ def apply(profile: dict, updates: list[dict], session: str, now: dt.datetime | N
             out["summaries"].append({"at": stamp, "session": session, "text": screen(u.get("text", ""), "text")})
             out["summaries"] = out["summaries"][-KEEP_SUMMARIES:]
             done.append("summary")
-        else:
-            raise LearnerError(f"updates[{i}].op must be basics, observe, misconception, preference or summary")
     out["updated"] = stamp
     return out, done
 
 
-def summary(profile: dict, on: dt.date | None = None) -> str:
-    """The few lines the tutor sees at the start of a session."""
-    on = on or today()
-    lines = []
-    basics = [f"{profile['grade']}年级" if profile.get("grade") else "年级未知"]
-    if profile.get("textbooks"):
-        basics.append("教材 " + "，".join(f"{s}:{e}" for s, e in profile["textbooks"].items()))
-    if profile.get("nickname"):
-        basics.insert(0, f"称呼 {profile['nickname']}")
-    lines.append("；".join(basics))
-    shaky = [k for k, v in profile["mastery"].items() if v["state"] != "mastered"]
-    solid = [k for k, v in profile["mastery"].items() if v["state"] == "mastered"]
-    if solid:
-        lines.append("已掌握：" + "，".join(solid[-6:]))
-    if shaky:
-        lines.append("未掌握或不确定：" + "，".join(shaky[-6:]))
-    active = [k for k, v in profile["misconceptions"].items() if v["status"] == "active"]
-    if active:
-        lines.append("仍活跃的误区：" + "，".join(active[-6:]))
-    due = [r["kp"] for r in profile["review"] if r["due"] <= on.isoformat()]
-    if due:
-        lines.append("今天到期该复习：" + "，".join(due[:5]))
-    if profile.get("preferences"):
-        lines.append("偏好：" + "；".join(f"{k}={v}" for k, v in profile["preferences"].items()))
-    if profile.get("summaries"):
-        last = profile["summaries"][-1]
-        lines.append(f"上次学习（{last['at'][:10]}）：{last['text']}")
-    if profile.get("grade") is None:
-        lines.append("档案是空的：等手头这一步告一段落，再单独问一句年级和教材版本，用 learner_profile 记下来；不要和讲题的问题放在同一条回复里。")
-    return "\n".join(lines)
+def legacy_binding(args):
+    from .study_transport import load_binding
+    from .study import digest, packed
+    binding = load_binding(args['cwd'])
+    if not binding:
+        return None
+    identity = {'studentId': binding['studentId'], 'endpoint': binding['endpoint']}
+    return {'bindingRef': digest(packed([*identity.values(), binding['bindingVersion']])), 'identity': identity}
+
+
+def authority(ws):
+    raw = request_context.get()
+    workspace = os.path.normcase(str(ws.root.parent.resolve()))
+    if raw is None:
+        return {'mode': 'local', 'workspaceRef': workspace, 'bindingRef': None, 'identity': None}
+    if (not isinstance(raw, dict) or raw.get('mode') not in ('local', 'legacy', 'family')
+            or not isinstance(raw.get('workspaceRef'), str)
+            or os.path.normcase(str(Path(raw['workspaceRef']).resolve())) != workspace):
+        raise LearnerError('learner context does not match the verified workspace')
+    if raw.get('mode') == 'local' and (raw.get('bindingRef') or raw.get('identity')):
+        raise LearnerError('local context cannot select a remote identity')
+    return raw
+
+
+def refresh_plan(args):
+    from .session import Workspace, current_task
+    ws = Workspace(args.get('cwd'), args.get('session'))
+    host = authority(ws)
+    state = ws.state()
+    task = current_task(state)
+    previous = state.get('learnerRefresh', {})
+    same = (previous.get('bindingRef') == host.get('bindingRef') and previous.get('mode') == host['mode']
+            and previous.get('authorityRef') == host.get('authorityRef'))
+    attempted = previous.get('attemptedAt')
+    stale = not attempted or dt.datetime.now(dt.timezone.utc) - dt.datetime.fromisoformat(attempted) >= REFRESH_AFTER
+    requested = args.get('event') == 'learner_profile' and args.get('action', 'read') == 'read'
+    boundary = requested or args.get('event') == 'route_task'
+    missing_cache = host['mode'] == 'family' and attempted and any(
+        source.get('availability') == 'not_requested' for source in (host.get('sources') or {}).values())
+    refresh = bool(boundary and host['mode'] != 'local' and host.get('bindingRef') and (
+        args.get('refresh') is True or requested and (not same or missing_cache or previous.get('dirty'))
+        or task and (not same or missing_cache or previous.get('taskRef') != task['taskRef'] or previous.get('dirty')
+                     or args.get('event') == 'route_task' and args.get('action') == 'resume' and stale)))
+    return {'refresh': refresh, 'taskRef': task['taskRef'] if task else None}
+
+
+def dirty(args):
+    from .session import Workspace
+    ws = Workspace(args.get('cwd'), args.get('session'))
+    state = ws.state()
+    state.setdefault('learnerRefresh', {})['dirty'] = True
+    ws.save(state)
+    return {'dirty': True}
+
+
+def _legacy_profile(args, refresh):
+    from .study_transport import load_binding, Transport, TransportError
+    from .study import database, packed, now
+    binding = load_binding(args['cwd'])
+    key = packed(['learner-profile', binding['studentId'], binding['endpoint'], binding['bindingVersion']])
+    with database(args) as (db, _):
+        cached = db.execute('SELECT value,observed_at FROM cache WHERE key=?', (key,)).fetchone()
+    previous = json.loads(cached['value']) if cached else None
+    if not refresh:
+        return ({**previous, 'availability': 'cached'} if previous and 'data' in previous else previous
+                or {'availability': 'not_requested', 'observedAt': None})
+    try:
+        value = Transport(binding)._invoke(['whoami'])
+        student = value.get('student') if isinstance(value, dict) else None
+        capabilities = value.get('capabilities') if isinstance(value, dict) else None
+        if not isinstance(student, dict) or not isinstance(capabilities, dict):
+            raise TransportError('blocked', 'invalid learner profile response')
+        if student.get('id') != binding['studentId'] or capabilities.get('learningRecordVersion') != 'learning-v1':
+            raise TransportError('blocked', 'student identity mismatch')
+        data = {'nickname': student.get('displayName') or student.get('name'), 'currentBookId': student.get('currentBookId')}
+        stamp = now()
+        source = {'availability': 'live', 'observedAt': stamp, 'attemptedAt': stamp, 'data': data}
+        with database(args) as (db, _):
+            db.execute('INSERT OR REPLACE INTO cache VALUES (?,?,?)', (key, packed(source), stamp))
+        return source
+    except TransportError as exc:
+        reason = 'identity' if 'identity' in exc.reason else 'auth' if exc.code in ('UNAUTHORIZED', 'FORBIDDEN') or 'credential' in exc.reason else 'service'
+        stamp = now()
+        source = ({**previous, 'availability': 'cached', 'reason': reason, 'attemptedAt': stamp}
+                  if previous and 'data' in previous and reason not in ('identity', 'auth')
+                  else {'availability': 'unavailable', 'observedAt': None, 'reason': reason, 'attemptedAt': stamp})
+        with database(args) as (db, _):
+            db.execute('INSERT OR REPLACE INTO cache VALUES (?,?,?)', (key, packed(source), stamp))
+        return source
+
+
+def _legacy_sources(args, refresh):
+    from . import study
+    profile = _legacy_profile(args, refresh)
+    sources = {'teachingProfile': profile}
+    for name, kind in (('mastery', 'mastery'), ('gaps', 'gaps')):
+        if profile['availability'] == 'not_requested':
+            sources[name] = {'availability': 'not_requested', 'observedAt': None}
+        elif profile.get('reason') in ('identity', 'auth'):
+            sources[name] = {key: value for key, value in profile.items() if key != 'data'}
+        else:
+            value = study.query({**args, 'kind': kind, 'limit': 20}, refresh=refresh, read_authorized=True)
+            sources[name] = {'availability': value['freshness'], 'observedAt': value['observedAt'],
+                             **({'data': value['data']} if 'data' in value else {}),
+                             **({'attemptedAt': value['attemptedAt']} if value.get('attemptedAt') else {}),
+                             **({'reason': value['reason']} if value.get('reason') else {})}
+    return sources
+
+
+def context(ws, state=None, *, event='learner_profile', action='read', refresh=False):
+    from .session import current_task
+    from .exercise import summary as exercise_summary
+    state = state if state is not None else ws.state()
+    host = authority(ws)
+    args = {'cwd': str(ws.root.parent), 'session': ws.session}
+    attempted = host.get('refreshed') is True
+    if host['mode'] == 'legacy':
+        binding = legacy_binding(args)
+        if not binding or binding['bindingRef'] != host.get('bindingRef'):
+            raise LearnerError('verified learner binding changed')
+        attempted = refresh_plan({**args, 'event': event, 'action': action, 'refresh': refresh})['refresh']
+        sources = _legacy_sources(args, attempted)
+    elif host['mode'] == 'family':
+        sources = copy.deepcopy(host.get('sources') or {})
+    else:
+        sources = {name: {'availability': 'absent', 'observedAt': None, 'reason': 'local_only'} for name in SOURCE_NAMES}
+    for name in SOURCE_NAMES:
+        source = sources.setdefault(name, {'availability': 'not_requested', 'observedAt': None})
+        if source.get('availability') not in AVAILABILITY or 'observedAt' not in source:
+            raise LearnerError('invalid sourced learner context')
+        if source['availability'] in ('live', 'cached') and not isinstance(source['observedAt'], str):
+            raise LearnerError('available learner source requires an observation time')
+    task = current_task(state)
+    if attempted:
+        state['learnerRefresh'] = {'mode': host['mode'], 'bindingRef': host.get('bindingRef'),
+            'authorityRef': host.get('authorityRef'),
+            'taskRef': task['taskRef'] if task else None, 'attemptedAt': dt.datetime.now(dt.timezone.utc).isoformat()}
+        ws.save(state)
+    profile = ws.profile()
+    refresh_pending = bool(task and refresh_plan({**args, 'event': 'learner_profile', 'action': 'read'})['refresh'])
+    return {'schema': 'k12-learner-context/1', 'mode': host['mode'], 'workspaceRef': os.path.normcase(str(ws.root.parent.resolve())),
+            'bindingRef': host.get('bindingRef'), 'identity': host.get('identity'), 'sources': sources,
+            'refreshPending': refresh_pending,
+            'local': {'profile': {key: profile.get(key) for key in ('nickname', 'grade', 'textbooks', 'updated')},
+                      'observations': profile.get('observations', []), 'preferences': profile.get('preferences', {}),
+                      'summaries': profile.get('summaries', [])[-2:],
+                      'historical': {key: profile.get(key, {}) for key in ('mastery', 'misconceptions', 'review')}},
+            'currentSessionEvidence': {'taskRef': task['taskRef'], **(exercise_summary(ws, task.get('activeExerciseId')) or {})} if task else None}
+
+
+def validate_observations(ws, updates):
+    from .study import database
+    observations = [value for value in updates if isinstance(value, dict) and value.get('op') == 'observation'] if isinstance(updates, list) else []
+    if not observations:
+        return
+    with database({'cwd': str(ws.root.parent), 'session': ws.session}) as (db, _):
+        for observation in observations:
+            refs = observation.get('evidenceRefs')
+            if not isinstance(refs, list) or not refs:
+                raise LearnerError('observation needs ledger evidenceRefs')
+            for reference in refs:
+                if not isinstance(reference, str) or not (db.execute("SELECT 1 FROM evidence WHERE ref=? AND role='user'", (reference,)).fetchone()
+                    or db.execute("SELECT 1 FROM records WHERE event_id=? AND sync<>'deleted'", (reference,)).fetchone()):
+                    raise LearnerError('observation evidenceRefs must reference this workspace ledger')
+
+
+def summary(view, *, include_history=True):
+    local = view['local']
+    profile = view['sources']['teachingProfile'].get('data') or {}
+    basics = profile if view['bindingRef'] else local['profile']
+    lines = [f"模式={view['mode']}；称呼={basics.get('nickname') or '未确认'}；册次={basics.get('currentBookId') or '未确认'}；年级={local['profile'].get('grade') or '未确认'}（本地自述）"]
+    if local['profile'].get('textbooks'):
+        lines.append('教材版本（本地自述）=' + json.dumps(local['profile']['textbooks'], ensure_ascii=False, separators=(',', ':')))
+    if view['refreshPending']:
+        lines.append('正式来源待普通教学操作后刷新；以下保留缓存时间或未读取状态。')
+    for name in SOURCE_NAMES:
+        source = view['sources'][name]
+        text = f"{name}: {source['availability']}；时间={source['observedAt'] or '无'}"
+        if source.get('reason'):
+            text += f"；原因={source['reason']}"
+        if source.get('attemptedAt'):
+            text += f"；尝试={source['attemptedAt']}"
+        data = source.get('data')
+        if include_history and name != 'teachingProfile' and data is not None:
+            if not data:
+                text += '；无该项记录'
+            else:
+                brief = data[:3] if isinstance(data, list) else {
+                    key: value[:2] if isinstance(value, list) else value for key, value in list(data.items())[:4]} if isinstance(data, dict) else data
+                text += '；摘要=' + json.dumps(brief, ensure_ascii=False, separators=(',', ':'))[:800] + '；详细记录按需查询'
+        lines.append(text)
+    if not include_history:
+        return '\n'.join(lines)
+    if any(local['historical'].values()):
+        lines.append('历史本地掌握/误区记录仅作历史观察，不是正式学情。')
+    if local['observations']:
+        lines.append('本地观察=' + json.dumps(local['observations'][-3:], ensure_ascii=False, separators=(',', ':')))
+    if local['preferences']:
+        lines.append('偏好=' + json.dumps(local['preferences'], ensure_ascii=False, separators=(',', ':')))
+    if view['currentSessionEvidence']:
+        lines.append('本题证据=' + json.dumps(view['currentSessionEvidence'], ensure_ascii=False, separators=(',', ':'))[:2500])
+    if not local['profile'].get('grade') and not basics.get('currentBookId'):
+        lines.append('年级和册次未确认；手头一步结束后再单独询问。')
+    return '\n'.join(lines)

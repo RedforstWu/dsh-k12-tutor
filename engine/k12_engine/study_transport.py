@@ -31,7 +31,7 @@ def _workspace(cwd: str) -> str:
 
 
 def _store() -> Path:
-    return Path.home() / ".dsh" / "profiles" / "k12-teacher" / "study-bindings.sqlite"
+    return Path(os.environ.get("DSH_HOME") or Path.home() / ".dsh") / "profiles" / "k12-teacher" / "study-bindings.sqlite"
 
 
 def load_binding(cwd: str) -> dict | None:

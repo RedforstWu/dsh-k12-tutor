@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import path from 'node:path';
 import { snapshotWebHistory, webCertificate, frozenPrefixValid } from './study-web-proof.mjs';
 import { studyWorkspaceAllowed } from '../../../ops/k12-tutor.mjs';
 import { parseStudySkin, withStudySkin } from './study-skin.mjs';
@@ -63,18 +64,61 @@ export function studyBridge(ctx, worker, config) {
       if (resolveCredential === resolve) resolveCredential = async () => undefined;
     });
   });
-  const rawCall = async (op, args) => {
+  const learnerAuthority = async args => {
+    const family = experience && args.session ? await experience.context({ sessionId: args.session }) : null;
+    if (family?.binding || family?.familyWorkspace) {
+      if (!studyWorkspaceAllowed(args.cwd, [family.cwd])) throw new Error('session identity changed');
+      return experience.learnerContext
+        ? experience.learnerContext({ sessionId: args.session, refresh: false })
+        : { mode: 'family', workspaceRef: family.cwd, bindingRef: family.binding?.bindingId || null,
+          identity: null, sources: {} };
+    }
+    if (await allowed(args.cwd, args.session)) {
+      const binding = await worker.call('learner_legacy_binding', { cwd: args.cwd, session: args.session });
+      if (binding?.bindingRef) return { mode: 'legacy', workspaceRef: path.resolve(args.cwd), ...binding };
+    }
+    return { mode: 'local', workspaceRef: path.resolve(args.cwd), bindingRef: null, identity: null };
+  };
+  const sameLearner = (left, right) => left.mode === right.mode && left.bindingRef === right.bindingRef
+    && JSON.stringify(left.identity) === JSON.stringify(right.identity) && left.authorityRef === right.authorityRef
+    && studyWorkspaceAllowed(left.workspaceRef, [right.workspaceRef]);
+  const rawCall = async (op, args, contextEvent) => {
     if (op.startsWith('study_')) await requireLegacyStudy(args);
     let privateContext;
-    if (['study_query', 'study_flush', 'study_practice', 'study_continuation', 'study_practice_open', 'study_mark_continued', 'study_web_assessment', 'study_web_read', 'study_web_certify', 'study_web_revoke'].includes(op)) {
+    let learnerContext;
+    const learnerOp = ['turn_begin', 'learner_profile', 'route_task'].includes(op);
+    if (learnerOp) {
+      learnerContext = await learnerAuthority(args);
+      if (op !== 'route_task') {
+        const plan = await worker.call('learner_context_plan', { cwd: args.cwd, session: args.session,
+          event: contextEvent?.event || op, action: contextEvent?.action || args.action,
+          refresh: args.refresh === true }, { learnerContext });
+        if (learnerContext.mode === 'family' && plan?.refresh && experience.learnerContext) {
+          learnerContext = { ...await experience.learnerContext({ sessionId: args.session, refresh: true }), refreshed: true };
+        }
+        if (contextEvent) args = { ...args, refresh: plan?.refresh === true };
+      }
+      if (!studyWorkspaceAllowed(args.cwd, [learnerContext.workspaceRef])) throw new Error('session identity changed');
+    }
+    if (['study_query', 'study_flush', 'study_practice', 'study_continuation', 'study_practice_open', 'study_mark_continued', 'study_web_assessment', 'study_web_read', 'study_web_certify', 'study_web_revoke'].includes(op)
+      || learnerContext?.mode === 'legacy') {
       const binding = await worker.call('study_binding_context', { cwd: args.cwd });
       if (binding.credentialRef) {
         const resolved = await resolveCredential(binding.credentialRef);
         if (resolved) privateContext = { credentialRef: binding.credentialRef, bindingVersion: binding.bindingVersion, token: resolved.value };
       }
     }
+    if (learnerContext) privateContext = { ...privateContext, learnerContext };
     const value = await worker.call(op, args, privateContext);
     if (op.startsWith('study_')) await requireLegacyStudy(args);
+    if (learnerContext) {
+      if (!sameLearner(learnerContext, await learnerAuthority(args))) throw new Error('session identity changed');
+      const view = value?.context || value?.learnerContext;
+      if (op !== 'turn_begin' && learnerContext.mode === 'legacy' && ['mastery', 'gaps'].some(key =>
+        ['live', 'cached'].includes(view?.sources?.[key]?.availability))) {
+        await worker.call('study_web_exposure', { cwd: args.cwd, session: args.session, kind: 'history' });
+      }
+    }
     return publicLinks(value, args.session, hostOrigin?.());
   };
   let sealAssessment;
@@ -88,7 +132,17 @@ export function studyBridge(ctx, worker, config) {
         await sealAssessment(args, baseline);
       }
     }
-    const result = await rawCall(op, args);
+    let result = await rawCall(op, args);
+    if (op === 'route_task' && ['start', 'resume', 'adapt'].includes(args.action || 'start') && result?.state !== 'navigation_failed') {
+      const view = await rawCall('learner_profile', { cwd: args.cwd, session: args.session, action: 'read' },
+        { event: 'route_task', action: args.action || 'start' });
+      result = { ...result, text: `${result.text || ''}\n\n[学情] ${view.summary}` };
+    }
+    if ((['exercise_record', 'study_record'].includes(op) && ['answer', 'revise', 'skip'].includes(args.action))
+      || op === 'study_practice' && args.action === 'grade'
+      || op === 'study_query' && result?.reason === 'authorization') {
+      await worker.call('learner_context_dirty', { cwd: args.cwd, session: args.session });
+    }
     if (enabled && (op === 'study_query' || (op === 'whiteboard' && (result?.boardId || result?.boards?.length)))
       && !(await familyBound(args.cwd, args.session))) {
       const binding = await worker.call('study_binding_context', { cwd: args.cwd });
@@ -172,16 +226,20 @@ export function studyBridge(ctx, worker, config) {
         await worker.call('study_watch_state', { ...args, leaseId, state: 'delivered' });
         return true;
       }
-      inspection = await inspect(args);
-      if (!admitted(inspection.events, receipt.requestId)) {
-        await scope.sessionController.prompt({ requestId: receipt.requestId, sessionId: args.session,
-          mode: 'queue', content: [{ type: 'text', text: `学习网页任务 ${receipt.taskId} 已提交。请用 study_practice(action=read, taskId=${receipt.taskId}) 读取真实作答，再继续讲解。此通知不是学生答案，不得用 study_record 记录。` }],
-          clientTimeZone: 'Asia/Shanghai' }, abort.signal);
-        const live = scope.sessions.get(args.session);
-        if (!live || !await scope.sessions.flush(live)) throw new Error('notification is not durable');
-      } else {
-        const live = scope.sessions.get(args.session);
-        if (live && !await scope.sessions.flush(live)) throw new Error('notification is not durable');
+      if (!receipt.background) {
+        inspection = await inspect(args);
+        if (!admitted(inspection.events, receipt.requestId)) {
+          const mapping = receipt.teacherTaskRef && receipt.teacherExerciseId
+            ? ` 原 Teacher 任务 ${receipt.teacherTaskRef}，题目 ${receipt.teacherExerciseId}。仅它仍为当前题时继续讲解；已换题则保存待回顾，不自动 resume 或打开白板。` : '';
+          await scope.sessionController.prompt({ requestId: receipt.requestId, sessionId: args.session,
+            mode: 'queue', content: [{ type: 'text', text: `学习网页任务 ${receipt.taskId} 已提交。请用 study_practice(action=read, taskId=${receipt.taskId}) 读取真实作答，再继续讲解。此通知不是学生答案，不得用 study_record 记录。${mapping}` }],
+            clientTimeZone: 'Asia/Shanghai' }, abort.signal);
+          const live = scope.sessions.get(args.session);
+          if (!live || !await scope.sessions.flush(live)) throw new Error('notification is not durable');
+        } else {
+          const live = scope.sessions.get(args.session);
+          if (live && !await scope.sessions.flush(live)) throw new Error('notification is not durable');
+        }
       }
       abort.signal.throwIfAborted();
       await call('study_mark_continued', { ...args, leaseId, requestId: receipt.requestId, submissionId: receipt.submissionId });

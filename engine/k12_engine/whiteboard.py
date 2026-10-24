@@ -9,7 +9,7 @@ import time
 import uuid
 
 from . import guard
-from .session import Workspace, current_task
+from .session import Workspace, current_task, protected_task
 
 ID = re.compile(r"^[A-Za-z0-9_-]{1,80}$")
 
@@ -35,7 +35,7 @@ def stop(doc):
 def invalidate(ws):
     for path in (ws.root / 'boards').glob('*.json'):
         doc = json.loads(path.read_text(encoding='utf-8'))
-        if doc['sessionId'] == ws.session or (doc['run'] and doc['run'].get('sessionId') == ws.session):
+        if doc.get('sessionId') == ws.session or (doc.get('run') and doc['run'].get('sessionId') == ws.session):
             stop(doc)
             save(ws, doc)
 
@@ -72,6 +72,8 @@ def validate(steps):
 
 
 def policy(task, steps):
+    if task and task.get('recovery_required'):
+        raise BoardError('board policy needs an exact exercise reference; resume the original exercise and rebuild ambiguous legacy content')
     if task is None or task.get('answer_policy') == 'refuse':
         raise BoardError('board policy refuses this task')
     if task.get('answer_policy') != 'withhold':
@@ -86,8 +88,19 @@ def policy(task, steps):
 
 
 def task_for(ws, doc):
-    state = Workspace(str(ws.root.parent), doc['sessionId']).state()
-    return next((t for t in state['tasks'] if t['id'] == doc['taskId']), None)
+    owner = Workspace(str(ws.root.parent), doc['sessionId'])
+    state = owner.state()
+    task = next((t for t in state['tasks'] if t['id'] == doc['taskId']), None)
+    if task and 'exerciseId' not in doc:
+        reference = state.get('legacyBoardExerciseRefs', {}).get(doc['taskId'])
+        if not reference:
+            return {**task, 'answer_policy': 'refuse', 'recovery_required': True}
+        from .exercise import task_view
+        return task_view(owner, task, reference)
+    if task and doc.get('exerciseId'):
+        from .exercise import task_view
+        return task_view(owner, task, doc['exerciseId'])
+    return protected_task(owner, state, task) if task else None
 
 
 def view(doc):
@@ -109,7 +122,7 @@ def run(args):
             boards.append({k: doc[k] for k in ('boardId', 'title', 'sessionId', 'taskId')})
         return {'boards': boards}
     state = ws.state()
-    task = current_task(state)
+    task = protected_task(ws, state)
     board_id = args.get('boardId')
     if not board_id and action not in ('append', 'open'):
         board_id = state.get('board_selection')
@@ -117,7 +130,8 @@ def run(args):
         raise BoardError('invalid board id')
     docs = [json.loads(p.read_text(encoding='utf-8')) for p in (ws.root / 'boards').glob('*.json')]
     doc = next((d for d in docs if d['boardId'] == board_id), None) if board_id else next(
-        (d for d in docs if d['sessionId'] == ws.session and task and d['taskId'] == task['id']), None)
+        (d for d in docs if d['sessionId'] == ws.session and task and d['taskId'] == task['id']
+         and d.get('exerciseId') == task.get('activeExerciseId')), None)
     if doc is None:
         if action not in ('append', 'open'):
             if action == 'read':
@@ -127,7 +141,7 @@ def run(args):
             raise BoardError('board not found')
         policy(task, [])
         doc = {'schema': 'k12-board/1', 'boardId': uuid.uuid4().hex, 'sessionId': ws.session,
-               'taskId': task['id'], 'title': task.get('topic') or '板书', 'steps': [], 'applied': 0,
+               'taskId': task['id'], 'exerciseId': task.get('activeExerciseId'), 'title': task.get('topic') or '板书', 'steps': [], 'applied': 0,
                'revision': 0, 'generation': 0, 'receipts': {}, 'run': None, 'boot': args.get('boot'),
                'presentation': {'intent': 'show', 'sequence': 0, 'autoplay': False}}
     if doc.get('boot') != args.get('boot') or (doc['run'] and doc['run']['until'] < time.time()):
@@ -140,7 +154,9 @@ def run(args):
     if action == 'read':
         return view(doc)
     if action == 'append':
-        if doc['sessionId'] != ws.session or doc['taskId'] != current_task(ws.state())['id']:
+        current = current_task(ws.state())
+        if (doc['sessionId'] != ws.session or not current or doc['taskId'] != current['id']
+                or doc.get('exerciseId') != current.get('activeExerciseId')):
             raise BoardError('append requires current task')
         receipt = args.get('receipt')
         if not isinstance(receipt, str) or not receipt or len(receipt) > 200:

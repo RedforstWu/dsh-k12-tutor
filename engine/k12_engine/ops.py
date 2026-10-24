@@ -26,6 +26,7 @@ OPS: dict[str, Callable[[dict], object]] = {
     "study_connect": study_host.connect,
     "study_status": study_host.status,
     "study_practice": study_practice.run,
+    "study_pending_reviews": study_practice.pending_reviews,
     "study_practice_open": study_host.open_task,
     "study_watch_list": study_host.watch_list,
     "study_watch_state": study_practice.watch_state,
@@ -44,6 +45,10 @@ OPS: dict[str, Callable[[dict], object]] = {
     "study_assessment": study.assessment,
     "study_query": study.query,
     "study_capture": study.capture,
+    "exercise_capture": lambda args: study.capture(args, local_only=True),
+    "exercise_record": lambda args: study.record(args, local_only=True),
+    "exercise_notification_ids": study_host.notification_ids,
+    "study_enable": study.enable,
     "study_flush": lambda args: study.flush(args, limit=5),
     "ping": lambda args: {"pong": True},
     "experience": preferences,
@@ -54,6 +59,9 @@ OPS: dict[str, Callable[[dict], object]] = {
     "route_task": session.route_task,
     "math_check": session.math_check,
     "learner_profile": session.learner_profile,
+    "learner_context_plan": learner.refresh_plan,
+    "learner_context_dirty": learner.dirty,
+    "learner_legacy_binding": learner.legacy_binding,
     "make_activity": session.make_activity,
     "turn_end": session.turn_end,
 }
@@ -63,7 +71,7 @@ def dispatch(op: str | None, args: dict) -> object:
     if op not in OPS:
         raise OpError(f"unknown op {op!r}")
     try:
-        if op in ("turn_begin", "route_task", "math_check", "learner_profile", "make_activity", "turn_end", "study_record", "whiteboard", "study_assessment"):
+        if op in ("turn_begin", "route_task", "math_check", "learner_profile", "learner_context_dirty", "make_activity", "turn_end", "study_record", "exercise_record", "whiteboard", "study_assessment"):
             from .locking import workspace_lock
             session.Workspace(args.get("cwd"), args.get("session"))
             with workspace_lock(args.get("cwd")):

@@ -12,10 +12,11 @@ from pathlib import Path
 
 import yaml
 
-from . import activities, subjects
+from . import subjects
 
 ROOT = Path(__file__).resolve().parents[2]
 PLAYBOOKS = ROOT / "skills" / "tutor-mode" / "references" / "playbooks"
+METHODS = ROOT / "skills" / "tutor-mode" / "references" / "methods"
 PRINCIPLES = ROOT / "skills" / "tutor-mode" / "references" / "principles"
 CONTEXTS = ("none", "homework", "exam-prep", "exam-live", "unknown")
 FRONTMATTER = re.compile(r"\A---\n(.*?)\n---\n(.*)\Z", re.S)
@@ -31,7 +32,6 @@ POLICY = {
 PROBLEM_PLAYBOOKS = {"solve", "diagnose", "practice", "writing", "figure-it-out"}
 OPEN_PLAYBOOKS = {"emotion", "review-plan", "inquiry"}
 MATH_ITEM = re.compile(r"[=<>≤≥]|\d\s*[-+×÷*/^]\s*[\d(a-z]|[a-z]\s*[-+*/^]\s*\d")
-REVEAL_MIN_STUDENT_TURNS = 2
 
 
 class RouteError(ValueError):
@@ -39,7 +39,7 @@ class RouteError(ValueError):
 
 
 @dataclass(frozen=True)
-class Playbook:
+class GuidanceCard:
     id: str
     name: str
     when: str
@@ -49,7 +49,7 @@ class Playbook:
 
 
 @lru_cache(maxsize=None)
-def playbooks(directory: Path = PLAYBOOKS) -> dict[str, Playbook]:
+def _cards(directory: Path) -> dict[str, GuidanceCard]:
     found = {}
     for path in sorted(directory.glob("*.md")):
         match = FRONTMATTER.match(path.read_text(encoding="utf-8").replace("\r\n", "\n"))
@@ -58,10 +58,23 @@ def playbooks(directory: Path = PLAYBOOKS) -> dict[str, Playbook]:
         meta = yaml.safe_load(match.group(1)) or {}
         if meta.get("id") != path.stem:
             raise RouteError(f"{path}: id must equal the file name")
-        found[path.stem] = Playbook(path.stem, str(meta["name"]), str(meta["when"]),
-                                    tuple(meta.get("principles") or ()), str(meta.get("status", "full")),
-                                    match.group(2).strip())
+        found[path.stem] = GuidanceCard(path.stem, str(meta["name"]), str(meta["when"]),
+                                        tuple(meta.get("principles") or ()), str(meta.get("status", "full")),
+                                        match.group(2).strip())
     return found
+
+
+def playbooks(directory: Path = PLAYBOOKS) -> dict[str, GuidanceCard]:
+    return _cards(directory)
+
+
+def methods(directory: Path = METHODS) -> dict[str, GuidanceCard]:
+    return _cards(directory)
+
+
+def validate_method(method: str | None) -> None:
+    if method is not None and (not isinstance(method, str) or method not in methods()):
+        raise RouteError(f"method must be omitted or one of {', '.join(methods())}")
 
 
 def policy_for(playbook: str, context: str, has_problem: bool) -> str:
@@ -69,7 +82,7 @@ def policy_for(playbook: str, context: str, has_problem: bool) -> str:
         return POLICY["exam-live"]
     if playbook == "boundary":
         return POLICY["boundary"]
-    if playbook in PROBLEM_PLAYBOOKS or (playbook not in OPEN_PLAYBOOKS and has_problem):
+    if has_problem or playbook in PROBLEM_PLAYBOOKS:
         return POLICY["problem"]
     return POLICY["open"]
 
@@ -168,6 +181,8 @@ def start(args: dict, profile: dict) -> dict:
     playbook = args.get("playbook")
     if playbook not in books:
         raise RouteError(f"playbook must be one of {', '.join(books)}")
+    method = args.get('method')
+    validate_method(method)
     context = args.get("assessment_context", "unknown")
     if context not in CONTEXTS:
         raise RouteError(f"assessment_context must be one of {', '.join(CONTEXTS)}")
@@ -215,48 +230,64 @@ def start(args: dict, profile: dict) -> dict:
             edition = next(iter(pack.textbooks), None)
         record["textbook"] = edition
     record["answer_policy"] = policy_for(playbook, context, bool(MATH_ITEM.search(problem.lower())))
-    return {"task": record, "notes": notes, "kp_ids": [k.split(":")[-1] for k in record["knowledge_points"]],
+    return {"task": record, "guidance": {"playbook": playbook, **({'method': method} if method else {})},
+            "notes": notes, "kp_ids": [k.split(":")[-1] for k in record["knowledge_points"]],
             "edition": edition}
 
 
 def render(result: dict) -> str:
     task = result["task"]
-    book = playbooks()[task["playbook"]]
     policy_text = {
-        "withhold": "答案策略 withhold：学生动手之前不给最终答案和完整过程；学生至少答过两轮后，确有必要才可用 route_task(action=reveal) 申请揭晓。",
+        "withhold": "答案策略 withhold：不给本题最终答案和完整过程。确有教学需要时，引用本题已记录的真实尝试和理由申请 reveal；作业原题仍不揭晓。闲聊轮数、自述和技术失败不构成尝试。",
         "refuse": "答案策略 refuse：正在考试或属于越界请求，不讲这道题本身，按 playbook 处理。",
         "open": "答案策略 open：没有需要扣住的答案，照常讲解。",
     }[task["answer_policy"]]
-    parts = [f"## Playbook：{book.name}（{book.id}）", book.body, "", policy_text]
-    if book.principles:
-        parts.append("这个 playbook 依赖的原则（需要细节时 read）：" + "，".join(
-            f"{p} → {(PRINCIPLES / (p + '.md')).as_posix()}" for p in book.principles))
+    parts = [policy_text, "", guidance_text(result['guidance'])]
     if task.get("pack"):
         subject, stage = task["pack"].split("/")
         pack = subjects.pack(subject, stage)
         cards = [kp_card(pack, kp_id, result.get("edition")) for kp_id in result["kp_ids"]]
         if cards:
             parts += ["", "## 知识点", *cards]
-    pick = activities.suggest(result["kp_ids"], task["playbook"]) if task["answer_policy"] != "refuse" else None
-    if pick:
-        variant = "，用变式题，不用作业原题" if task.get("assessment_context") == "homework" else ""
-        parts += ["", "## 互动网页（make_activity，然后 present）",
-                  f"这段任务做一个：{pick['what']}{variant}。在 playbook 提到互动网页的那一步做，做完请学生回来说结果。其他可选：",
-                  activities.catalog_for(result["kp_ids"], PRINCIPLES.parent / "activities.md")]
+    if task['answer_policy'] != 'refuse':
+        parts += ["", "学生需要操作、观察或比较时才选媒介；对话或现有白板能完成就继续。"
+                  f"需要网页时按用途 read {(PRINCIPLES.parent / 'activities.md').as_posix()}，创建时写明 purpose。"]
     if result["notes"]:
         parts += ["", "## 注意", *[f"- {n}" for n in result["notes"]]]
     return "\n".join(parts)
 
 
-def can_reveal(task: dict, student_turns: int) -> tuple[bool, str]:
+def can_reveal(task: dict, has_attempt: bool) -> tuple[bool, str]:
     if task.get("answer_policy") == "refuse":
         return False, "这个任务不能揭晓答案（考试中或越界请求）"
+    if task.get("assessment_context") in (None, "unknown"):
+        return False, "题目情境尚未确认，不能揭晓最终答案；可继续用提示帮助学生尝试"
     if task.get("answer_policy") == "open":
         return True, "这个任务本来就没有扣住的答案"
-    if student_turns < REVEAL_MIN_STUDENT_TURNS:
-        return False, f"学生在这个任务里只回答了 {student_turns} 轮，先让学生再试一次，或给下一级提示"
     if task.get("assessment_context") == "homework":
         # 双减与教育部学生使用指南：作业原题不给可直接抄写的答案。帮助的上限是同构变式题的完整示范。
         return False, ("作业原题不揭晓最终答案。改为讲一道同构变式题（换数字或换结构）的完整过程，"
                        "再请学生回到原题自己做；原题只点出他卡住的那一步")
-    return True, "学生已经动手，可以揭晓并请学生复述关键步骤"
+    if has_attempt is not True:
+        return False, "需要引用这道题已记录的真实尝试并说明教学理由；闲聊轮数不构成尝试"
+    return True, "已有本题尝试与教学理由，可以对照完整过程"
+
+
+def guidance_text(guidance: dict) -> str:
+    book = playbooks()[guidance['playbook']]
+    parts = [f"## Playbook：{book.name}（{book.id}）"]
+    if book.status != 'full':
+        parts.append(f"资料状态 {book.status}：仅提供当前骨架范围，不代表完整学科教学覆盖。")
+    parts.append(book.body)
+    method = methods()[guidance['method']] if guidance.get('method') else None
+    if method:
+        parts += ["", f"## 方法：{method.name}（{method.id}）", method.body]
+    if guidance.get('focus'):
+        parts.append('当前着力点：' + guidance['focus'])
+    if guidance.get('nextObservation'):
+        parts.append('下一步观察：' + guidance['nextObservation'])
+    principles = dict.fromkeys((*book.principles, *(method.principles if method else ())))
+    if principles:
+        parts.append("需要原则细节时 read：" + "，".join(
+            f"{p} → {(PRINCIPLES / (p + '.md')).as_posix()}" for p in principles))
+    return '\n\n'.join(parts)

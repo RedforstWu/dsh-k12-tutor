@@ -1,6 +1,6 @@
 {
   "name": "dsh-k12-tutor",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "description": "面向中小学生的学习导师（首个学科包：初中数学·人教版）。先诊断再讲解，逐级提示，不代写不代考；未成年人安全、学术诚信和隐私规则常驻。",
   "type": "module",
   "license": "MIT",
