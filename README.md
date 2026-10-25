@@ -1,4 +1,4 @@
-# dsh-k12-tutor 1.0.0
+# dsh-k12-tutor 1.0.1
 
 K12 学习导师的 DeepSeek Harness bundle。首个学科包是初中数学（人教版，2022 年版课标修订版）。
 
