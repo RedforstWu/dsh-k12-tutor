@@ -14,11 +14,11 @@
  *
  * Paths default to this package's own layout (engine/, skills/, subjects/ next to ops/), so the same file
  * works from a source checkout and from an installed bundle. The engine runs on config.python, else
- * $K12_PYTHON, else `uv run` with the engine's two dependencies (uv provisions them on first use).
+ * $K12_PYTHON, else `uv run` with the engine's dependencies (uv provisions them on first use).
  */
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { realpathSync } from 'node:fs';
+import { existsSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline';
 import { fileURLToPath } from 'node:url';
@@ -35,13 +35,16 @@ export const DEFAULTS = {
   engineDir: path.join(ROOT, 'engine'),
   readRoots: [path.join(ROOT, 'skills'), path.join(ROOT, 'subjects')],
 };
-const UV_ARGS = ['run', '--no-project', '--quiet', '--with', 'sympy>=1.13', '--with', 'pyyaml>=6', '--with', 'jsonschema>=4', 'python'];
+const UV_ARGS = ['run', '--no-project', '--quiet', '--python', '3.12', '--with', 'sympy>=1.13', '--with', 'pyyaml>=6', '--with', 'jsonschema>=4', 'python'];
 
 /** The command that starts the engine worker. */
 export function engineCommand(python, environ = process.env) {
   const interpreter = python || environ.K12_PYTHON;
   const serve = ['-m', 'k12_engine', 'serve'];
-  return interpreter ? [interpreter, serve] : ['uv', [...UV_ARGS, ...serve]];
+  if (interpreter) return [interpreter, serve];
+  const bundledUv = path.join(ROOT, 'bin', 'win32-x64', 'uv.exe');
+  const uv = process.platform === 'win32' && process.arch === 'x64' && existsSync(bundledUv) ? bundledUv : 'uv';
+  return [uv, [...UV_ARGS, ...serve]];
 }
 
 /** One engine worker; requests are serialized by id, a dead worker is restarted on the next call. */

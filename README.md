@@ -1,12 +1,12 @@
-# dsh-k12-tutor 1.0.1
+# dsh-k12-tutor 1.0.2
 
 K12 学习导师的 DeepSeek Harness bundle。首个学科包是初中数学（人教版，2022 年版课标修订版）。
 
 ## 要求
 
 - DeepSeek Harness `>=0.2.1-rc.2 <0.3.0`。
-- [uv](https://docs.astral.sh/uv/)。导师的计算和规则引擎是 Python（sympy、pyyaml、jsonschema），第一次使用时 uv 自动准备环境。
-  已有装好这三个包的 Python 时，可以设置环境变量 `K12_PYTHON` 指向它，代替 uv。
+- Windows x64 包内自带 [uv](https://docs.astral.sh/uv/) `0.13.5`，无需另外安装 uv；第一次使用时 uv 自动准备 Python 3.12 和 sympy、pyyaml、jsonschema（需要网络）。
+  其他平台需自行安装 uv。已有装好这三个包的 Python 时，可以设置环境变量 `K12_PYTHON` 指向它，代替 uv。
 - 一个支持图片输入的模型（学生常发作业照片），在 profile 的模型设置里配置。bundle 不带模型和凭据。
 - `dsh plugin add` 用 pnpm 安装，`PATH` 上要有能用的 pnpm（例如 `npm i -g pnpm`）。
 
