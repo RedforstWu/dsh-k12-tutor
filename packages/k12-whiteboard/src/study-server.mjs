@@ -84,6 +84,7 @@ export function studyBridge(ctx, worker, config) {
     && studyWorkspaceAllowed(left.workspaceRef, [right.workspaceRef]);
   const rawCall = async (op, args, contextEvent) => {
     if (op.startsWith('study_')) await requireLegacyStudy(args);
+    if (op === 'study_knowledge' && !(await allowed(args.cwd, args.session))) throw new Error('workspace disabled');
     let privateContext;
     let learnerContext;
     const learnerOp = ['turn_begin', 'learner_profile', 'route_task'].includes(op);
@@ -100,7 +101,7 @@ export function studyBridge(ctx, worker, config) {
       }
       if (!studyWorkspaceAllowed(args.cwd, [learnerContext.workspaceRef])) throw new Error('session identity changed');
     }
-    if (['study_query', 'study_flush', 'study_practice', 'study_continuation', 'study_practice_open', 'study_mark_continued', 'study_web_assessment', 'study_web_read', 'study_web_certify', 'study_web_revoke'].includes(op)
+    if (['study_query', 'study_knowledge', 'study_flush', 'study_practice', 'study_continuation', 'study_practice_open', 'study_mark_continued', 'study_web_assessment', 'study_web_read', 'study_web_certify', 'study_web_revoke'].includes(op)
       || learnerContext?.mode === 'legacy') {
       const binding = await worker.call('study_binding_context', { cwd: args.cwd });
       if (binding.credentialRef) {
@@ -111,6 +112,7 @@ export function studyBridge(ctx, worker, config) {
     if (learnerContext) privateContext = { ...privateContext, learnerContext };
     const value = await worker.call(op, args, privateContext);
     if (op.startsWith('study_')) await requireLegacyStudy(args);
+    if (op === 'study_knowledge' && !(await allowed(args.cwd, args.session))) throw new Error('workspace disabled');
     if (learnerContext) {
       if (!sameLearner(learnerContext, await learnerAuthority(args))) throw new Error('session identity changed');
       const view = value?.context || value?.learnerContext;

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Callable
 
-from . import activities, experience, learner, mathcheck, route, session, subjects, study, study_host, study_practice, whiteboard
+from . import activities, experience, learner, mathcheck, route, session, subjects, study, study_host, study_knowledge, study_practice, whiteboard
 
 
 class OpError(ValueError):
@@ -44,6 +44,7 @@ OPS: dict[str, Callable[[dict], object]] = {
     "study_record": study.record,
     "study_assessment": study.assessment,
     "study_query": study.query,
+    "study_knowledge": study_knowledge.run,
     "study_capture": study.capture,
     "exercise_capture": lambda args: study.capture(args, local_only=True),
     "exercise_record": lambda args: study.record(args, local_only=True),

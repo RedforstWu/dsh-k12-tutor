@@ -8,10 +8,15 @@ export const inject = ['credentials', 'storageDomain', 'workspaceRegistry', 'ses
 const ACTIONS = { me: '/me', mastery: '/mastery', gaps: '/diagnosis', papers: '/papers', paper: '/papers/',
   bank: '/bank/questions?type=single&limit=20' };
 const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,199}$/;
+const SAFE_VERSION = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
+const KNOWLEDGE_ACTIONS = ['knowledge_manifest', 'knowledge_search', 'knowledge_node', 'knowledge_graph'];
 const FAMILY_SOURCES = ['teachingProfile', 'mastery', 'gaps'];
 const MESSAGES = {
   input: '请求参数不正确。', network: '暂时无法连接学习站点，请稍后重试。',
   auth: '学习站点授权已失效，请由家长重新连接。', service: '学习站点服务暂不可用，请稍后重试。',
+  version: '知识图谱版本已变化，请重新读取清单后再查询。',
+  knowledge: '共享知识图谱当前不可用或知识点不存在，请先检查清单和知识点 ID。',
+  catalog: '学习站点返回的共享知识图谱数据格式无效。',
   identity: '授权对应的学生与已确认身份不一致。', unbound: '当前会话尚未连接学习站点。',
   workspace: '学生工作区不可用。', conflict: '此工作区已属于另一位学生，或此学生已绑定其他工作区。',
   session: '会话不可用。', active: '会话仍有任务执行，请先停止或等待完成。',
@@ -28,6 +33,36 @@ function fields(value, allowed, required = []) {
   if (!object(value) || Object.keys(value).some(key => !allowed.includes(key)) || required.some(key => !(key in value))) fail('input');
 }
 function id(value) { if (typeof value !== 'string' || !SAFE_ID.test(value)) fail('input'); return value; }
+function knowledgeResource(input) {
+  if (input.action === 'knowledge_manifest') return '/kg/catalog';
+  const params = new URLSearchParams();
+  if (input.action === 'knowledge_search') {
+    params.set('q', input.query);
+    params.set('limit', String(input.limit ?? 20));
+  }
+  if (input.version !== undefined) params.set('version', input.version);
+  const query = params.toString();
+  const suffix = query ? `?${query}` : '';
+  if (input.action === 'knowledge_search') return `/kg/catalog/search${suffix}`;
+  const node = `/kg/catalog/nodes/${encodeURIComponent(input.resourceId)}`;
+  return input.action === 'knowledge_graph' ? `${node}/graph${suffix}` : `${node}${suffix}`;
+}
+function knowledgeData(input, data) {
+  if (!object(data)) fail('catalog');
+  if (input.action === 'knowledge_manifest') {
+    if (!(data.version === null || typeof data.version === 'string' && SAFE_VERSION.test(data.version))
+      || data.schemaVersion !== 'k12-knowledge-catalog/v1' || !Array.isArray(data.sources) || !Array.isArray(data.books)
+      || !['nodeCount', 'knowledgeCount', 'edgeCount'].every(key => Number.isInteger(data[key]) && data[key] >= 0)) fail('catalog');
+    return data;
+  }
+  if (typeof data.version !== 'string' || !SAFE_VERSION.test(data.version)) fail('catalog');
+  if (input.version !== undefined && input.version !== data.version) fail('version');
+  if (input.action === 'knowledge_search' && (!Array.isArray(data.items) || typeof data.truncated !== 'boolean')) fail('catalog');
+  if (input.action === 'knowledge_node' && (!object(data.node) || data.node.id !== input.resourceId)) fail('catalog');
+  if (input.action === 'knowledge_graph' && (data.centerId !== input.resourceId || !Array.isArray(data.nodes)
+    || !Array.isArray(data.edges) || typeof data.truncated !== 'boolean')) fail('catalog');
+  return data;
+}
 function sessionInput(value) { return id(value); }
 function origin(value) {
   if (typeof value !== 'string' || value.length > 2048) fail('input');
@@ -116,6 +151,8 @@ export function createExperienceService({ bindings, requests, credentials, crede
     let result;
     try { result = await response.json(); } catch { fail('service'); }
     if (response.status === 409 && result?.error?.code === 'IDEMPOTENCY_KEY_REUSED') fail('request');
+    if (response.status === 409 && result?.error?.code === 'KNOWLEDGE_VERSION_MISMATCH') fail('version');
+    if (resource.startsWith('/kg/catalog') && result?.error?.code === 'NOT_FOUND') fail('knowledge');
     if (!response.ok || !object(result) || result.ok !== true || !('data' in result)) fail('service');
     return result;
   }
@@ -427,11 +464,18 @@ export function createExperienceService({ bindings, requests, credentials, crede
       });
     },
     async readStudy(input, signal) {
-      fields(input, ['sessionId', 'action', 'resourceId'], ['sessionId', 'action']);
+      fields(input, ['sessionId', 'action', 'resourceId', 'query', 'version', 'limit'], ['sessionId', 'action']);
       const sessionId = sessionInput(input.sessionId);
-      if (typeof input.action !== 'string' || !Object.hasOwn(ACTIONS, input.action)) fail('input');
-      if (input.action === 'paper') id(input.resourceId);
+      if (typeof input.action !== 'string' || (!Object.hasOwn(ACTIONS, input.action) && !KNOWLEDGE_ACTIONS.includes(input.action))) fail('input');
+      if (input.action === 'paper' || ['knowledge_node', 'knowledge_graph'].includes(input.action)) id(input.resourceId);
       else if (input.resourceId !== undefined) fail('input');
+      if (input.action === 'knowledge_search') {
+        if (typeof input.query !== 'string' || !input.query.trim() || [...input.query].length > 100
+          || (input.limit !== undefined && (!Number.isInteger(input.limit) || input.limit < 1 || input.limit > 100))) fail('input');
+      } else if (input.query !== undefined || input.limit !== undefined) fail('input');
+      if (['knowledge_search', 'knowledge_node', 'knowledge_graph'].includes(input.action)) {
+        if (input.version !== undefined && (typeof input.version !== 'string' || !SAFE_VERSION.test(input.version))) fail('input');
+      } else if (input.version !== undefined) fail('input');
       let access;
       try {
         access = await authorization(sessionId, signal);
@@ -441,7 +485,9 @@ export function createExperienceService({ bindings, requests, credentials, crede
         let failure;
         try {
           result = input.action === 'me' ? me : await requestSite(binding.siteOrigin, token,
-            ACTIONS[input.action] + (input.action === 'paper' ? encodeURIComponent(input.resourceId) : ''), signal);
+            KNOWLEDGE_ACTIONS.includes(input.action) ? knowledgeResource(input)
+              : ACTIONS[input.action] + (input.action === 'paper' ? encodeURIComponent(input.resourceId) : ''), signal);
+          if (KNOWLEDGE_ACTIONS.includes(input.action)) knowledgeData(input, result.data);
         } catch (error) {
           if (!['k12/network', 'k12/service'].includes(error.code)) throw error;
           failure = error;

@@ -31,6 +31,8 @@ open 返回 exerciseId 和答案槽说明。插件注入真实输入的 response
 
 `study_query(kind=recent|wrong|mastery|gaps,limit=1..100)` 返回 live、cached 或 unavailable，带 observedAt 和同步状态。unavailable 不等于没有历史。参考答案和解析不进入默认远端历史。recent 和 wrong 支持 cursor、knowledgeId、exerciseId 过滤与续页。受控模板使用版本化映射 tutor-math/v1；revise 可提供 mappingVersion 与 reason，由引擎从冻结模板派生映射，不能填写知识点 ID。旧快照不会随映射升级静默变化。缺少映射的记录可以保存，不能用于 tutor 观测。宿主后发现窗口缺失或输出污染时追加帮助降级修订，保留原上传载荷与重放身份。
 
+共享知识图谱使用 `study_data(action=knowledge_manifest|knowledge_search|knowledge_node|knowledge_graph)`。先读 manifest，再用返回的 `version` 固定搜索、节点和关系查询；版本冲突时重新读 manifest。返回 `version=null` 表示没有可确认的图谱版本，不能据此声称关系完整或数据实时。连接的 Study 图谱是已审核关系的共享来源；本地 `subjects/` 内容用于讲解与离线教学，不自动等同或合并知识点 ID。图谱查询会暴露教学信息，不能在独立测评开始前调用，也不要求每次 `route_task` 都查询。
+
 
 独立性范围仅为宿主可审计的受控模板窗口。同会话先前未归属的解释、提示、反馈、页面或未知输出会持续使后题为 unknown；打开未完成的占位模板不能清除历史。只有已闭合练习中的精确模板题面可作为已知历史。跨会话只排除账本已经记录的相同模板/等价参数题，不能证明任意旧自由题或外部教学没有泄露答案。后补污染的安全降级如遇远端版本变化，会基于刚读到的版本追加新 help-only mutation，不改变旧重放字节，也不覆盖家长判定或映射。
 

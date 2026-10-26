@@ -139,7 +139,7 @@ def find_kps(pack: subjects.Pack, text: str, grade: int | None, limit: int = 3, 
 def kp_card(pack: subjects.Pack, kp_id: str, edition: str | None) -> str:
     kp = pack.kps[kp_id]
     found_in, places = pack.locate(kp_id, edition)
-    lines = [f"### {kp.name}（{pack.key}:{kp.id}）"]
+    lines = [f"### {kp.name}（{pack.key}:{kp.id}）", "本地教学资料（非共享图谱）；以下章节、课标、基础和讲解内容均来自 Tutor 本地学科包。"]
     if places:
         label = pack.textbook_meta.get(found_in, {}).get("short", found_in)
         lines.append(f"教材位置（{label}）：" + "；".join(f"{c.grade}年级{c.term}册 第{c.no}章 {c.title} · {s.no} {s.title}"
@@ -151,7 +151,7 @@ def kp_card(pack: subjects.Pack, kp_id: str, edition: str | None) -> str:
     if kp.curriculum:
         lines.append("课标：" + "；".join(kp.curriculum))
     if kp.prerequisites:
-        lines.append("前置知识：" + "，".join(f"{pack.kps[p].name}（{p}）" for p in kp.prerequisites if p in pack.kps))
+        lines.append("本地讲解建议的基础（未做共享映射）：" + "，".join(f"{pack.kps[p].name}（{p}）" for p in kp.prerequisites if p in pack.kps))
     for summary in kp.explanation_summary:
         lines.append(f"- 讲解关键：{summary}")
     for mc_id in kp.misconceptions:
@@ -248,10 +248,10 @@ def render(result: dict) -> str:
         pack = subjects.pack(subject, stage)
         cards = [kp_card(pack, kp_id, result.get("edition")) for kp_id in result["kp_ids"]]
         if cards:
-            parts += ["", "## 知识点", *cards]
+            parts += ["", "## 知识点", "已连接学习站时，用 study_data 查询共享图谱定义和关系；本地学科包只作讲解内容与离线参考，不自动映射知识点 ID。", *cards]
     if task['answer_policy'] != 'refuse':
         parts += ["", "学生需要操作、观察或比较时才选媒介；对话或现有白板能完成就继续。"
-                  f"需要网页时按用途 read {(PRINCIPLES.parent / 'activities.md').as_posix()}，创建时写明 purpose。"]
+                  f"GenUI 可用且无需引擎校验时，可在正文用 dsh-ui 围栏；需要受控页面时 read {(PRINCIPLES.parent / 'activities.md').as_posix()}，make_activity 写明 purpose 后用 present 发送。"]
     if result["notes"]:
         parts += ["", "## 注意", *[f"- {n}" for n in result["notes"]]]
     return "\n".join(parts)

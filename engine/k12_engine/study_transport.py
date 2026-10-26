@@ -195,6 +195,10 @@ class Transport:
             return envelope["data"]
         error = envelope.get("error")
         code = error.get("code") if isinstance(error, dict) else None
+        if code == "KNOWLEDGE_VERSION_MISMATCH":
+            raise TransportError("conflict", "knowledge catalog version changed; read manifest and retry", code=code)
+        if code == "NOT_FOUND":
+            raise TransportError("blocked", "requested Study resource does not exist", code=code)
         if code in {"CONFLICT", "TUTOR_CONFLICT", "REVISION_CONFLICT", "IDEMPOTENCY_CONFLICT"}:
             raise TransportError("conflict", "remote revision or identity conflict")
         if code in {"UNAUTHORIZED", "FORBIDDEN"}:
@@ -216,7 +220,7 @@ class Transport:
         self.verified = True
 
     def call(self, operation: str, payload=None, record_id=None, cursor=None, limit=20, kind=None,
-             knowledge_id=None, exercise_id=None):
+             knowledge_id=None, exercise_id=None, query=None, resource_id=None, version=None):
         if type(limit) is not int or not 1 <= limit <= 100:
             raise TransportError("blocked", "limit must be between 1 and 100")
         if operation in {"update", "detail", "task_show", "task_open", "task_certify", "task_revoke_certification"} and (not isinstance(record_id, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,127}", record_id)):
@@ -227,6 +231,26 @@ class Transport:
             if value is not None and (operation not in {"recent", "wrong"} or not isinstance(value, str)
                                       or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,127}", value)):
                 raise TransportError("blocked", "invalid history filter")
+        knowledge_operations = {"knowledge_manifest", "knowledge_search", "knowledge_node", "knowledge_graph"}
+        if operation in knowledge_operations - {"knowledge_search"} and limit != 20:
+            raise TransportError("blocked", "limit is only supported for knowledge search")
+        if query is not None and (operation != "knowledge_search" or not isinstance(query, str)
+                                  or not query.strip() or len(query) > 100):
+            raise TransportError("blocked", "invalid knowledge query")
+        if operation == "knowledge_search" and query is None:
+            raise TransportError("blocked", "knowledge search requires a query")
+        if resource_id is not None and (operation not in {"knowledge_node", "knowledge_graph"}
+                                        or not isinstance(resource_id, str)
+                                        or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,199}", resource_id)):
+            raise TransportError("blocked", "invalid knowledge reference")
+        if operation in {"knowledge_node", "knowledge_graph"} and resource_id is None:
+            raise TransportError("blocked", "knowledge operation requires a reference")
+        if version is not None and (operation not in {"knowledge_search", "knowledge_node", "knowledge_graph"}
+                                    or not isinstance(version, str)
+                                    or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,127}", version)):
+            raise TransportError("blocked", "invalid knowledge version")
+        if operation not in knowledge_operations and (query is not None or resource_id is not None or version is not None):
+            raise TransportError("blocked", "knowledge filters are not supported for this operation")
         commands = {"task_issue": ["task", "issue", "--file", "-"],
                     "task_assessment": ["task", "assessment", "--file", "-"],
                     "task_open": ["task", "open", record_id],
@@ -240,6 +264,10 @@ class Transport:
                     "changes": ["attempt", "changes", "--after", cursor or "0", "--limit", str(limit)],
                     "recent": ["attempts", "--view", "learning-v1", "--limit", str(limit)],
                     "wrong": ["attempts", "--view", "learning-v1", "--wrong", "--limit", str(limit)],
+                    "knowledge_manifest": ["kg", "manifest"],
+                    "knowledge_search": ["kg", "catalog-search", "--limit", str(limit)],
+                    "knowledge_node": ["kg", "catalog-show", resource_id],
+                    "knowledge_graph": ["kg", "graph", resource_id],
                     "mastery": ["mastery"], "gaps": ["gaps"]}
         if operation not in commands:
             raise TransportError("blocked", "unsupported study operation")
@@ -252,6 +280,15 @@ class Transport:
             arguments += ["--knowledge", knowledge_id]
         if exercise_id is not None:
             arguments += ["--exercise", exercise_id]
+        if version is not None:
+            arguments += ["--version", version]
+        if operation == "knowledge_search":
+            arguments += ["--", query]
         if not self.verified:
             self.verify()
-        return self._invoke(arguments, payload, history=operation in {"recent", "wrong"})
+        try:
+            return self._invoke(arguments, payload, history=operation in {"recent", "wrong"})
+        except TransportError as exc:
+            if operation in knowledge_operations and exc.code == "NOT_FOUND":
+                raise TransportError("blocked", "shared knowledge graph is unavailable or the requested node does not exist; read manifest and verify the ID", code=exc.code) from None
+            raise

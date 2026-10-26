@@ -123,8 +123,11 @@ export const SCHEMAS = {
   study_data: {
     type: 'object', additionalProperties: false, required: ['action'],
     properties: {
-      action: { type: 'string', enum: ['me', 'mastery', 'gaps', 'papers', 'paper', 'bank'] },
-      resourceId: { type: 'string', minLength: 1, maxLength: 128 },
+      action: { type: 'string', enum: ['me', 'mastery', 'gaps', 'papers', 'paper', 'bank', 'knowledge_manifest', 'knowledge_search', 'knowledge_node', 'knowledge_graph'] },
+      resourceId: { type: 'string', minLength: 1, maxLength: 200, pattern: '^[A-Za-z0-9][A-Za-z0-9_-]{0,199}$' },
+      query: { type: 'string', minLength: 1, maxLength: 100 },
+      version: { type: 'string', minLength: 1, maxLength: 128, pattern: '^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$' },
+      limit: { type: 'integer', minimum: 1, maximum: 100 },
     },
   },
   study_record: {
@@ -459,6 +462,10 @@ export function apply(ctx, config = {}) {
   const readRoots = config.readRoots?.length ? config.readRoots : DEFAULTS.readRoots;
   const engine = ctx.k12Engine;
   const engineDir = config.engineDir || DEFAULTS.engineDir;
+  const studyEnabled = config.studyEnabled === true;
+  const knowledgeActions = new Set(['knowledge_manifest', 'knowledge_search', 'knowledge_node', 'knowledge_graph']);
+  const enabledFor = async session => studyEnabled && (engine?.studyAllowed
+    ? await engine.studyAllowed(session?.header?.cwd, session?.id) : studyWorkspaceAllowed(session?.header?.cwd, config.studyWorkspaces));
 
   let experience;
   const registerPractice = service => ctx.tools.register({
@@ -469,6 +476,42 @@ export function apply(ctx, config = {}) {
       if (!args || Object.keys(args).length) throw new Error('unexpected practice field');
       exec.signal?.throwIfAborted();
       return { practice: await service.latest({ sessionId: where(exec).session }) };
+    },
+  });
+  ctx.tools.register({
+    name: 'study_data', description: '读取当前学生站点学情或共享知识图谱；图谱关系以学习站返回的版本为准。此工具不写成绩。',
+    parameters: SCHEMAS.study_data,
+    output: { schema: { type: 'object', additionalProperties: true }, render: (_args, value) => [{ type: 'text', text: JSON.stringify(value) }] },
+    execute: async (args, exec) => {
+      const session = exec.agent?.session;
+      const action = args?.action;
+      const accepted = {
+        knowledge_manifest: ['action'], knowledge_search: ['action', 'query', 'version', 'limit'],
+        knowledge_node: ['action', 'resourceId', 'version'], knowledge_graph: ['action', 'resourceId', 'version'],
+        paper: ['action', 'resourceId'],
+      };
+      const required = { knowledge_search: ['query'], knowledge_node: ['resourceId'], knowledge_graph: ['resourceId'], paper: ['resourceId'] };
+      const fields = accepted[action] || ['action'];
+      if (!args || !SCHEMAS.study_data.properties.action.enum.includes(action)
+        || Object.keys(args).some(key => !fields.includes(key)) || (required[action] || []).some(key => !(key in args))
+        || action === 'paper' && (typeof args.resourceId !== 'string' || args.resourceId.length > 128)) {
+        throw new Error('unexpected study field');
+      }
+      exec.signal?.throwIfAborted();
+      const sessionId = where(exec).session;
+      if (!experience) throw new Error('学习站点身份服务暂不可用，无法确认当前会话归属。');
+      const access = await experience.context({ sessionId }, exec.signal);
+      if (access.binding || access.familyWorkspace === true) {
+        if (!studyWorkspaceAllowed(where(exec).cwd, [access.cwd])) throw new Error('会话身份已变化。');
+        const value = await experience.readStudy({ ...args, sessionId }, exec.signal);
+        if (!knowledgeActions.has(action)) await engine.call('learner_context_dirty', where(exec));
+        return value;
+      }
+      if (!knowledgeActions.has(action)) throw new Error('当前会话尚未连接学习站点。');
+      if (!await enabledFor(session)) {
+        throw new Error('K12_GUARD: 当前工作区未启用共享知识图谱入口。');
+      }
+      return { ok: true, data: await engine.call('study_knowledge', { ...args, ...where(exec) }) };
     },
   });
   const registerExperience = service => {
@@ -483,18 +526,6 @@ export function apply(ctx, config = {}) {
         return service.createPaper({ ...args, sessionId: where(exec).session }, exec.signal);
       },
     });
-    ctx.tools.register({
-      name: 'study_data', description: '读取当前学生站点学情；身份由会话绑定确定，此工具不写成绩。',
-      parameters: SCHEMAS.study_data,
-      output: { schema: { type: 'object', additionalProperties: true }, render: (_args, value) => [{ type: 'text', text: JSON.stringify(value) }] },
-      execute: async (args, exec) => {
-        if (!args || Object.keys(args).some(key => !['action', 'resourceId'].includes(key))) throw new Error('unexpected study field');
-        exec.signal?.throwIfAborted();
-        const value = await service.readStudy({ ...args, sessionId: where(exec).session }, exec.signal);
-        await engine.call('learner_context_dirty', where(exec));
-        return value;
-      },
-    });
   };
   if (ctx.inject) {
     ctx.inject(['k12Experience'], scope => { registerExperience(scope.k12Experience); });
@@ -504,10 +535,7 @@ export function apply(ctx, config = {}) {
     if (ctx.k12Practice) registerPractice(ctx.k12Practice);
   }
 
-  const studyEnabled = config.studyEnabled === true;
   engine?.configureStudy?.(config);
-  const enabledFor = async session => studyEnabled && (engine?.studyAllowed
-    ? await engine.studyAllowed(session?.header?.cwd, session?.id) : studyWorkspaceAllowed(session?.header?.cwd, config.studyWorkspaces));
   const studyInstructions = `[学习记录已启用] 网页练习调用 study_practice(action=issue,assessment,slot,purpose)，将返回的宿主 answerUrl 原样作为链接给学生，不自行改写为学习站链接。发题后等待网页提交的宿主通知，无需让学生手动读取或点击继续；收到通知后 read 和 grade 都使用通知中的 taskId（不是 recordId），读取并批改同一网页提交；practice_only 或证据不完整只排除掌握度，仍须保存批改，当前仍在原任务与原题时才继续现有白板；已切换时保存待回顾，不切换焦点或播放。宿主通知不是学生作答，不能保存为聊天答案。普通网页练习不计掌握度；宿主界面发起的独立测评须由服务器核验证据后才可能合格，不能自行声称独立完成或另用 study_record 保存。独立评估直接调用 study_assessment({assessment:{templateId,params},slot,purpose})，之前不要 read、route_task、其他工具、开场白或提示；返回 deliveryText 后原样单独发给学生，等待真实回答。普通持续目标先 route_task(action=start)；同目标新题在向学生提问前调用 study_record(action=open)，新槽位如 practice-2，不重建任务。题目须在可记录作答前开立。保存 exerciseId；answer 只用真实输入的 responseRef、answerSlot=whole 或 step-N 及对应 scope、judgment={state:"graded",correct,errorCause}（正确时 errorCause=null），不确定时 judgment={state:"pending",reason:"needs_review"}。不能补开练习或伪造作答。dismiss 的 reason 仅可为 self_report、not_answer、context、technical。普通辅导详细说明见 ${path.join(path.dirname(engineDir), 'skills', 'tutor-mode', 'references', 'study-records.md')}。`;
   const localInstructions = '[本地题目账本] 需要记录作答时先建立持续任务。返回的 exercise 若 contextOnly=false，沿用其 exerciseId 记录后续真实作答；尚无具体题目身份或题意改变时，才在提问前 study_record(action=open,taskRef,slot,question,purpose)。原题换讲法用 adapt，回到旧题用 resume；不能为已收到的回答补开题。同一目标可用 practice-1、practice-2 等槽位；同槽位重试复用身份，改题用新槽位。answer 仅使用真实输入 responseRef；分步用 answerSlot=step-N 和 scope={kind:"step",stepKey:"step-N"}。同一步真实重答使用新 responseRef，改判用 revise；自述/闲聊/技术失败用 dismiss，不制造答错。这里的记录是 local_only，不是正式成绩，不启用远端绑定或上传。';
   const notificationIds = async session => {
