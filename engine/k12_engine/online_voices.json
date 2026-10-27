@@ -1,0 +1,569 @@
+[
+  {
+    "id": "zh-HK-HiuGaaiNeural",
+    "voiceURI": "microsoft-online:zh-HK-HiuGaaiNeural",
+    "name": "Microsoft HiuGaai Online (Natural) - Chinese (Cantonese Traditional)",
+    "lang": "zh-HK",
+    "aliases": [
+      "Microsoft HiuGaai Online (Natural) - Chinese (Cantonese Traditional)",
+      "Microsoft HiuGaai Online (Natural) - Chinese (Cantonese, Traditional)"
+    ]
+  },
+  {
+    "id": "zh-HK-HiuMaanNeural",
+    "voiceURI": "microsoft-online:zh-HK-HiuMaanNeural",
+    "name": "Microsoft HiuMaan Online (Natural) - Chinese (Hong Kong SAR)",
+    "lang": "zh-HK",
+    "aliases": [
+      "Microsoft HiuMaan Online (Natural) - Chinese (Hong Kong SAR)",
+      "Microsoft HiuMaan Online (Natural) - Chinese (Cantonese, Traditional)"
+    ]
+  },
+  {
+    "id": "zh-HK-WanLungNeural",
+    "voiceURI": "microsoft-online:zh-HK-WanLungNeural",
+    "name": "Microsoft WanLung Online (Natural) - Chinese (Hong Kong SAR)",
+    "lang": "zh-HK",
+    "aliases": [
+      "Microsoft WanLung Online (Natural) - Chinese (Hong Kong SAR)",
+      "Microsoft WanLung Online (Natural) - Chinese (Cantonese, Traditional)"
+    ]
+  },
+  {
+    "id": "zh-CN-XiaoxiaoNeural",
+    "voiceURI": "microsoft-online:zh-CN-XiaoxiaoNeural",
+    "name": "Microsoft 晓晓 Online (Natural)",
+    "lang": "zh-CN",
+    "aliases": [
+      "Microsoft Xiaoxiao Online (Natural) - Chinese (Mainland)",
+      "Microsoft Xiaoxiao Online (Natural) - Chinese (Mandarin, Simplified)",
+      "Microsoft 晓晓 Online (Natural) - Chinese (Mandarin, Simplified)"
+    ]
+  },
+  {
+    "id": "zh-CN-XiaoyiNeural",
+    "voiceURI": "microsoft-online:zh-CN-XiaoyiNeural",
+    "name": "Microsoft Xiaoyi Online (Natural) - Chinese (Mainland)",
+    "lang": "zh-CN",
+    "aliases": [
+      "Microsoft Xiaoyi Online (Natural) - Chinese (Mainland)",
+      "Microsoft Xiaoyi Online (Natural) - Chinese (Mandarin, Simplified)"
+    ]
+  },
+  {
+    "id": "zh-CN-YunjianNeural",
+    "voiceURI": "microsoft-online:zh-CN-YunjianNeural",
+    "name": "Microsoft Yunjian Online (Natural) - Chinese (Mainland)",
+    "lang": "zh-CN",
+    "aliases": [
+      "Microsoft Yunjian Online (Natural) - Chinese (Mainland)",
+      "Microsoft Yunjian Online (Natural) - Chinese (Mandarin, Simplified)"
+    ]
+  },
+  {
+    "id": "zh-CN-YunxiNeural",
+    "voiceURI": "microsoft-online:zh-CN-YunxiNeural",
+    "name": "Microsoft 云希 Online (Natural)",
+    "lang": "zh-CN",
+    "aliases": [
+      "Microsoft Yunxi Online (Natural) - Chinese (Mainland)",
+      "Microsoft Yunxi Online (Natural) - Chinese (Mandarin, Simplified)",
+      "Microsoft 云希 Online (Natural) - Chinese (Mandarin, Simplified)"
+    ]
+  },
+  {
+    "id": "zh-CN-YunxiaNeural",
+    "voiceURI": "microsoft-online:zh-CN-YunxiaNeural",
+    "name": "Microsoft Yunxia Online (Natural) - Chinese (Mainland)",
+    "lang": "zh-CN",
+    "aliases": [
+      "Microsoft Yunxia Online (Natural) - Chinese (Mainland)",
+      "Microsoft Yunxia Online (Natural) - Chinese (Mandarin, Simplified)"
+    ]
+  },
+  {
+    "id": "zh-CN-YunyangNeural",
+    "voiceURI": "microsoft-online:zh-CN-YunyangNeural",
+    "name": "Microsoft Yunyang Online (Natural) - Chinese (Mainland)",
+    "lang": "zh-CN",
+    "aliases": [
+      "Microsoft Yunyang Online (Natural) - Chinese (Mainland)",
+      "Microsoft Yunyang Online (Natural) - Chinese (Mandarin, Simplified)"
+    ]
+  },
+  {
+    "id": "zh-CN-liaoning-XiaobeiNeural",
+    "voiceURI": "microsoft-online:zh-CN-liaoning-XiaobeiNeural",
+    "name": "Microsoft Xiaobei Online (Natural) - Chinese (Northeastern Mandarin)",
+    "lang": "zh-CN-liaoning",
+    "aliases": [
+      "Microsoft Xiaobei Online (Natural) - Chinese (Northeastern Mandarin)",
+      "Microsoft Xiaobei Online (Natural) - Chinese (Northeastern Mandarin, Simplified)"
+    ]
+  },
+  {
+    "id": "zh-TW-HsiaoChenNeural",
+    "voiceURI": "microsoft-online:zh-TW-HsiaoChenNeural",
+    "name": "Microsoft HsiaoChen Online (Natural) - Chinese (Taiwan)",
+    "lang": "zh-TW",
+    "aliases": [
+      "Microsoft HsiaoChen Online (Natural) - Chinese (Taiwan)",
+      "Microsoft HsiaoChen Online (Natural) - Chinese (Taiwanese Mandarin, Traditional)"
+    ]
+  },
+  {
+    "id": "zh-TW-YunJheNeural",
+    "voiceURI": "microsoft-online:zh-TW-YunJheNeural",
+    "name": "Microsoft YunJhe Online (Natural) - Chinese (Taiwan)",
+    "lang": "zh-TW",
+    "aliases": [
+      "Microsoft YunJhe Online (Natural) - Chinese (Taiwan)",
+      "Microsoft YunJhe Online (Natural) - Chinese (Taiwanese Mandarin, Traditional)"
+    ]
+  },
+  {
+    "id": "zh-TW-HsiaoYuNeural",
+    "voiceURI": "microsoft-online:zh-TW-HsiaoYuNeural",
+    "name": "Microsoft HsiaoYu Online (Natural) - Chinese (Taiwanese Mandarin)",
+    "lang": "zh-TW",
+    "aliases": [
+      "Microsoft HsiaoYu Online (Natural) - Chinese (Taiwanese Mandarin)",
+      "Microsoft HsiaoYu Online (Natural) - Chinese (Taiwanese Mandarin, Traditional)"
+    ]
+  },
+  {
+    "id": "zh-CN-shaanxi-XiaoniNeural",
+    "voiceURI": "microsoft-online:zh-CN-shaanxi-XiaoniNeural",
+    "name": "Microsoft Xiaoni Online (Natural) - Chinese (Zhongyuan Mandarin Shaanxi)",
+    "lang": "zh-CN-shaanxi",
+    "aliases": [
+      "Microsoft Xiaoni Online (Natural) - Chinese (Zhongyuan Mandarin Shaanxi)",
+      "Microsoft Xiaoni Online (Natural) - Chinese (Zhongyuan Mandarin Shaanxi, Simplified)"
+    ]
+  },
+  {
+    "id": "en-AU-WilliamMultilingualNeural",
+    "voiceURI": "microsoft-online:en-AU-WilliamMultilingualNeural",
+    "name": "Microsoft WilliamMultilingual Online (Natural) - English (Australia)",
+    "lang": "en-AU",
+    "aliases": [
+      "Microsoft WilliamMultilingual Online (Natural) - English (Australia)"
+    ]
+  },
+  {
+    "id": "en-AU-NatashaNeural",
+    "voiceURI": "microsoft-online:en-AU-NatashaNeural",
+    "name": "Microsoft Natasha Online (Natural) - English (Australia)",
+    "lang": "en-AU",
+    "aliases": [
+      "Microsoft Natasha Online (Natural) - English (Australia)"
+    ]
+  },
+  {
+    "id": "en-CA-ClaraNeural",
+    "voiceURI": "microsoft-online:en-CA-ClaraNeural",
+    "name": "Microsoft Clara Online (Natural) - English (Canada)",
+    "lang": "en-CA",
+    "aliases": [
+      "Microsoft Clara Online (Natural) - English (Canada)"
+    ]
+  },
+  {
+    "id": "en-CA-LiamNeural",
+    "voiceURI": "microsoft-online:en-CA-LiamNeural",
+    "name": "Microsoft Liam Online (Natural) - English (Canada)",
+    "lang": "en-CA",
+    "aliases": [
+      "Microsoft Liam Online (Natural) - English (Canada)"
+    ]
+  },
+  {
+    "id": "en-HK-YanNeural",
+    "voiceURI": "microsoft-online:en-HK-YanNeural",
+    "name": "Microsoft Yan Online (Natural) - English (Hong Kong SAR)",
+    "lang": "en-HK",
+    "aliases": [
+      "Microsoft Yan Online (Natural) - English (Hong Kong SAR)"
+    ]
+  },
+  {
+    "id": "en-HK-SamNeural",
+    "voiceURI": "microsoft-online:en-HK-SamNeural",
+    "name": "Microsoft Sam Online (Natural) - English (Hongkong)",
+    "lang": "en-HK",
+    "aliases": [
+      "Microsoft Sam Online (Natural) - English (Hongkong)",
+      "Microsoft Sam Online (Natural) - English (Hong Kong SAR)"
+    ]
+  },
+  {
+    "id": "en-IN-NeerjaExpressiveNeural",
+    "voiceURI": "microsoft-online:en-IN-NeerjaExpressiveNeural",
+    "name": "Microsoft Neerja Online (Natural) - English (India) (Preview)",
+    "lang": "en-IN",
+    "aliases": [
+      "Microsoft Neerja Online (Natural) - English (India) (Preview)",
+      "Microsoft NeerjaExpressive Online (Natural) - English (India)"
+    ]
+  },
+  {
+    "id": "en-IN-NeerjaNeural",
+    "voiceURI": "microsoft-online:en-IN-NeerjaNeural",
+    "name": "Microsoft Neerja Online (Natural) - English (India)",
+    "lang": "en-IN",
+    "aliases": [
+      "Microsoft Neerja Online (Natural) - English (India)"
+    ]
+  },
+  {
+    "id": "en-IN-PrabhatNeural",
+    "voiceURI": "microsoft-online:en-IN-PrabhatNeural",
+    "name": "Microsoft Prabhat Online (Natural) - English (India)",
+    "lang": "en-IN",
+    "aliases": [
+      "Microsoft Prabhat Online (Natural) - English (India)"
+    ]
+  },
+  {
+    "id": "en-IE-ConnorNeural",
+    "voiceURI": "microsoft-online:en-IE-ConnorNeural",
+    "name": "Microsoft Connor Online (Natural) - English (Ireland)",
+    "lang": "en-IE",
+    "aliases": [
+      "Microsoft Connor Online (Natural) - English (Ireland)"
+    ]
+  },
+  {
+    "id": "en-IE-EmilyNeural",
+    "voiceURI": "microsoft-online:en-IE-EmilyNeural",
+    "name": "Microsoft Emily Online (Natural) - English (Ireland)",
+    "lang": "en-IE",
+    "aliases": [
+      "Microsoft Emily Online (Natural) - English (Ireland)"
+    ]
+  },
+  {
+    "id": "en-KE-AsiliaNeural",
+    "voiceURI": "microsoft-online:en-KE-AsiliaNeural",
+    "name": "Microsoft Asilia Online (Natural) - English (Kenya)",
+    "lang": "en-KE",
+    "aliases": [
+      "Microsoft Asilia Online (Natural) - English (Kenya)"
+    ]
+  },
+  {
+    "id": "en-KE-ChilembaNeural",
+    "voiceURI": "microsoft-online:en-KE-ChilembaNeural",
+    "name": "Microsoft Chilemba Online (Natural) - English (Kenya)",
+    "lang": "en-KE",
+    "aliases": [
+      "Microsoft Chilemba Online (Natural) - English (Kenya)"
+    ]
+  },
+  {
+    "id": "en-NZ-MitchellNeural",
+    "voiceURI": "microsoft-online:en-NZ-MitchellNeural",
+    "name": "Microsoft Mitchell Online (Natural) - English (New Zealand)",
+    "lang": "en-NZ",
+    "aliases": [
+      "Microsoft Mitchell Online (Natural) - English (New Zealand)"
+    ]
+  },
+  {
+    "id": "en-NZ-MollyNeural",
+    "voiceURI": "microsoft-online:en-NZ-MollyNeural",
+    "name": "Microsoft Molly Online (Natural) - English (New Zealand)",
+    "lang": "en-NZ",
+    "aliases": [
+      "Microsoft Molly Online (Natural) - English (New Zealand)"
+    ]
+  },
+  {
+    "id": "en-NG-AbeoNeural",
+    "voiceURI": "microsoft-online:en-NG-AbeoNeural",
+    "name": "Microsoft Abeo Online (Natural) - English (Nigeria)",
+    "lang": "en-NG",
+    "aliases": [
+      "Microsoft Abeo Online (Natural) - English (Nigeria)"
+    ]
+  },
+  {
+    "id": "en-NG-EzinneNeural",
+    "voiceURI": "microsoft-online:en-NG-EzinneNeural",
+    "name": "Microsoft Ezinne Online (Natural) - English (Nigeria)",
+    "lang": "en-NG",
+    "aliases": [
+      "Microsoft Ezinne Online (Natural) - English (Nigeria)"
+    ]
+  },
+  {
+    "id": "en-PH-JamesNeural",
+    "voiceURI": "microsoft-online:en-PH-JamesNeural",
+    "name": "Microsoft James Online (Natural) - English (Philippines)",
+    "lang": "en-PH",
+    "aliases": [
+      "Microsoft James Online (Natural) - English (Philippines)"
+    ]
+  },
+  {
+    "id": "en-PH-RosaNeural",
+    "voiceURI": "microsoft-online:en-PH-RosaNeural",
+    "name": "Microsoft Rosa Online (Natural) - English (Philippines)",
+    "lang": "en-PH",
+    "aliases": [
+      "Microsoft Rosa Online (Natural) - English (Philippines)"
+    ]
+  },
+  {
+    "id": "en-US-AvaNeural",
+    "voiceURI": "microsoft-online:en-US-AvaNeural",
+    "name": "Microsoft Ava Online (Natural) - English (United States)",
+    "lang": "en-US",
+    "aliases": [
+      "Microsoft Ava Online (Natural) - English (United States)"
+    ]
+  },
+  {
+    "id": "en-US-AndrewNeural",
+    "voiceURI": "microsoft-online:en-US-AndrewNeural",
+    "name": "Microsoft Andrew Online (Natural) - English (United States)",
+    "lang": "en-US",
+    "aliases": [
+      "Microsoft Andrew Online (Natural) - English (United States)"
+    ]
+  },
+  {
+    "id": "en-US-EmmaNeural",
+    "voiceURI": "microsoft-online:en-US-EmmaNeural",
+    "name": "Microsoft Emma Online (Natural) - English (United States)",
+    "lang": "en-US",
+    "aliases": [
+      "Microsoft Emma Online (Natural) - English (United States)"
+    ]
+  },
+  {
+    "id": "en-US-BrianNeural",
+    "voiceURI": "microsoft-online:en-US-BrianNeural",
+    "name": "Microsoft Brian Online (Natural) - English (United States)",
+    "lang": "en-US",
+    "aliases": [
+      "Microsoft Brian Online (Natural) - English (United States)"
+    ]
+  },
+  {
+    "id": "en-SG-LunaNeural",
+    "voiceURI": "microsoft-online:en-SG-LunaNeural",
+    "name": "Microsoft Luna Online (Natural) - English (Singapore)",
+    "lang": "en-SG",
+    "aliases": [
+      "Microsoft Luna Online (Natural) - English (Singapore)"
+    ]
+  },
+  {
+    "id": "en-SG-WayneNeural",
+    "voiceURI": "microsoft-online:en-SG-WayneNeural",
+    "name": "Microsoft Wayne Online (Natural) - English (Singapore)",
+    "lang": "en-SG",
+    "aliases": [
+      "Microsoft Wayne Online (Natural) - English (Singapore)"
+    ]
+  },
+  {
+    "id": "en-ZA-LeahNeural",
+    "voiceURI": "microsoft-online:en-ZA-LeahNeural",
+    "name": "Microsoft Leah Online (Natural) - English (South Africa)",
+    "lang": "en-ZA",
+    "aliases": [
+      "Microsoft Leah Online (Natural) - English (South Africa)"
+    ]
+  },
+  {
+    "id": "en-ZA-LukeNeural",
+    "voiceURI": "microsoft-online:en-ZA-LukeNeural",
+    "name": "Microsoft Luke Online (Natural) - English (South Africa)",
+    "lang": "en-ZA",
+    "aliases": [
+      "Microsoft Luke Online (Natural) - English (South Africa)"
+    ]
+  },
+  {
+    "id": "en-TZ-ElimuNeural",
+    "voiceURI": "microsoft-online:en-TZ-ElimuNeural",
+    "name": "Microsoft Elimu Online (Natural) - English (Tanzania)",
+    "lang": "en-TZ",
+    "aliases": [
+      "Microsoft Elimu Online (Natural) - English (Tanzania)"
+    ]
+  },
+  {
+    "id": "en-TZ-ImaniNeural",
+    "voiceURI": "microsoft-online:en-TZ-ImaniNeural",
+    "name": "Microsoft Imani Online (Natural) - English (Tanzania)",
+    "lang": "en-TZ",
+    "aliases": [
+      "Microsoft Imani Online (Natural) - English (Tanzania)"
+    ]
+  },
+  {
+    "id": "en-GB-LibbyNeural",
+    "voiceURI": "microsoft-online:en-GB-LibbyNeural",
+    "name": "Microsoft Libby Online (Natural) - English (United Kingdom)",
+    "lang": "en-GB",
+    "aliases": [
+      "Microsoft Libby Online (Natural) - English (United Kingdom)"
+    ]
+  },
+  {
+    "id": "en-GB-MaisieNeural",
+    "voiceURI": "microsoft-online:en-GB-MaisieNeural",
+    "name": "Microsoft Maisie Online (Natural) - English (United Kingdom)",
+    "lang": "en-GB",
+    "aliases": [
+      "Microsoft Maisie Online (Natural) - English (United Kingdom)"
+    ]
+  },
+  {
+    "id": "en-GB-RyanNeural",
+    "voiceURI": "microsoft-online:en-GB-RyanNeural",
+    "name": "Microsoft Ryan Online (Natural) - English (United Kingdom)",
+    "lang": "en-GB",
+    "aliases": [
+      "Microsoft Ryan Online (Natural) - English (United Kingdom)"
+    ]
+  },
+  {
+    "id": "en-GB-SoniaNeural",
+    "voiceURI": "microsoft-online:en-GB-SoniaNeural",
+    "name": "Microsoft Sonia Online (Natural) - English (United Kingdom)",
+    "lang": "en-GB",
+    "aliases": [
+      "Microsoft Sonia Online (Natural) - English (United Kingdom)"
+    ]
+  },
+  {
+    "id": "en-GB-ThomasNeural",
+    "voiceURI": "microsoft-online:en-GB-ThomasNeural",
+    "name": "Microsoft Thomas Online (Natural) - English (United Kingdom)",
+    "lang": "en-GB",
+    "aliases": [
+      "Microsoft Thomas Online (Natural) - English (United Kingdom)"
+    ]
+  },
+  {
+    "id": "en-US-AnaNeural",
+    "voiceURI": "microsoft-online:en-US-AnaNeural",
+    "name": "Microsoft Ana Online (Natural) - English (United States)",
+    "lang": "en-US",
+    "aliases": [
+      "Microsoft Ana Online (Natural) - English (United States)"
+    ]
+  },
+  {
+    "id": "en-US-AndrewMultilingualNeural",
+    "voiceURI": "microsoft-online:en-US-AndrewMultilingualNeural",
+    "name": "Microsoft AndrewMultilingual Online (Natural) - English (United States)",
+    "lang": "en-US",
+    "aliases": [
+      "Microsoft AndrewMultilingual Online (Natural) - English (United States)"
+    ]
+  },
+  {
+    "id": "en-US-AriaNeural",
+    "voiceURI": "microsoft-online:en-US-AriaNeural",
+    "name": "Microsoft Aria Online (Natural) - English (United States)",
+    "lang": "en-US",
+    "aliases": [
+      "Microsoft Aria Online (Natural) - English (United States)"
+    ]
+  },
+  {
+    "id": "en-US-AvaMultilingualNeural",
+    "voiceURI": "microsoft-online:en-US-AvaMultilingualNeural",
+    "name": "Microsoft AvaMultilingual Online (Natural) - English (United States)",
+    "lang": "en-US",
+    "aliases": [
+      "Microsoft AvaMultilingual Online (Natural) - English (United States)"
+    ]
+  },
+  {
+    "id": "en-US-BrianMultilingualNeural",
+    "voiceURI": "microsoft-online:en-US-BrianMultilingualNeural",
+    "name": "Microsoft BrianMultilingual Online (Natural) - English (United States)",
+    "lang": "en-US",
+    "aliases": [
+      "Microsoft BrianMultilingual Online (Natural) - English (United States)"
+    ]
+  },
+  {
+    "id": "en-US-ChristopherNeural",
+    "voiceURI": "microsoft-online:en-US-ChristopherNeural",
+    "name": "Microsoft Christopher Online (Natural) - English (United States)",
+    "lang": "en-US",
+    "aliases": [
+      "Microsoft Christopher Online (Natural) - English (United States)"
+    ]
+  },
+  {
+    "id": "en-US-EmmaMultilingualNeural",
+    "voiceURI": "microsoft-online:en-US-EmmaMultilingualNeural",
+    "name": "Microsoft EmmaMultilingual Online (Natural) - English (United States)",
+    "lang": "en-US",
+    "aliases": [
+      "Microsoft EmmaMultilingual Online (Natural) - English (United States)"
+    ]
+  },
+  {
+    "id": "en-US-EricNeural",
+    "voiceURI": "microsoft-online:en-US-EricNeural",
+    "name": "Microsoft Eric Online (Natural) - English (United States)",
+    "lang": "en-US",
+    "aliases": [
+      "Microsoft Eric Online (Natural) - English (United States)"
+    ]
+  },
+  {
+    "id": "en-US-GuyNeural",
+    "voiceURI": "microsoft-online:en-US-GuyNeural",
+    "name": "Microsoft Guy Online (Natural) - English (United States)",
+    "lang": "en-US",
+    "aliases": [
+      "Microsoft Guy Online (Natural) - English (United States)"
+    ]
+  },
+  {
+    "id": "en-US-JennyNeural",
+    "voiceURI": "microsoft-online:en-US-JennyNeural",
+    "name": "Microsoft Jenny Online (Natural) - English (United States)",
+    "lang": "en-US",
+    "aliases": [
+      "Microsoft Jenny Online (Natural) - English (United States)"
+    ]
+  },
+  {
+    "id": "en-US-MichelleNeural",
+    "voiceURI": "microsoft-online:en-US-MichelleNeural",
+    "name": "Microsoft Michelle Online (Natural) - English (United States)",
+    "lang": "en-US",
+    "aliases": [
+      "Microsoft Michelle Online (Natural) - English (United States)"
+    ]
+  },
+  {
+    "id": "en-US-RogerNeural",
+    "voiceURI": "microsoft-online:en-US-RogerNeural",
+    "name": "Microsoft Roger Online (Natural) - English (United States)",
+    "lang": "en-US",
+    "aliases": [
+      "Microsoft Roger Online (Natural) - English (United States)"
+    ]
+  },
+  {
+    "id": "en-US-SteffanNeural",
+    "voiceURI": "microsoft-online:en-US-SteffanNeural",
+    "name": "Microsoft Steffan Online (Natural) - English (United States)",
+    "lang": "en-US",
+    "aliases": [
+      "Microsoft Steffan Online (Natural) - English (United States)"
+    ]
+  }
+]

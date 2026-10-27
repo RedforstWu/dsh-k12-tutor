@@ -2,6 +2,8 @@ import { createHash, randomUUID } from 'node:crypto';
 import { mkdir, realpath, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { openExperienceStore } from './store.mjs';
+import { createOnlineSpeech } from './online-speech.mjs';
+import onlineVoices from '../../../engine/k12_engine/online_voices.json' with { type: 'json' };
 
 export const name = 'k12-experience';
 export const inject = ['credentials', 'storageDomain', 'workspaceRegistry', 'sessionController', 'k12Engine', 'connection', 'profileContext'];
@@ -22,6 +24,7 @@ const MESSAGES = {
   session: '会话不可用。', active: '会话仍有任务执行，请先停止或等待完成。',
   expired: '身份核对已过期，请重新验证授权。', internal: '本机连接操作失败，请重试。',
   unsupported: '首期在线练习仅支持单选和多选题。', request: '请求与已保存的提交状态冲突，请由家长核对站点试卷。',
+  speech: '微软在线语音合成暂不可用，请检查网络后重试。',
 };
 
 class ExperienceError extends Error {
@@ -124,7 +127,7 @@ async function canonical(directory) {
 }
 
 export function createExperienceService({ bindings, requests, credentials, credentialKey, workspaceRegistry, sessionController,
-  engine, workspaceRoot, sessionActivity = async () => [], fetch: siteFetch = globalThis.fetch }) {
+  engine, workspaceRoot, sessionActivity = async () => [], fetch: siteFetch = globalThis.fetch, synthesizeSpeech }) {
   const pending = new Map();
   const snapshots = new Map();
   const attempts = new Map();
@@ -336,6 +339,16 @@ export function createExperienceService({ bindings, requests, credentials, crede
       const { cwd } = await inspect(sessionInput(input.sessionId), signal);
       return engine.call('experience', { cwd, action: input.preferences === undefined ? 'read' : 'save',
         ...(input.preferences === undefined ? {} : { preferences: input.preferences }) });
+    },
+    async speech(input, signal) {
+      fields(input, ['sessionId', 'voice', 'text', 'rate'], ['sessionId', 'voice', 'text', 'rate']);
+      await inspect(sessionInput(input.sessionId), signal);
+      if (!onlineVoices.some(voice => voice.id === input.voice) || typeof input.text !== 'string' || !input.text.trim()
+        || input.text.length > 2000 || !Number.isFinite(input.rate) || input.rate < 0.5 || input.rate > 2) fail('input');
+      try {
+        if (!synthesizeSpeech || signal?.aborted) fail('speech');
+        return await synthesizeSpeech({ voice: input.voice, text: input.text, rate: input.rate }, signal);
+      } catch { fail('speech'); }
     },
     async context(input, signal) {
       fields(input, ['sessionId'], ['sessionId']);
@@ -567,7 +580,7 @@ export function createExperienceService({ bindings, requests, credentials, crede
 }
 
 export function registerExperienceRoutes(ctx, service) {
-  for (const endpoint of ['list', 'verify', 'confirm', 'preferences', 'target', 'unlink', 'study']) {
+  for (const endpoint of ['list', 'verify', 'confirm', 'preferences', 'speech', 'target', 'unlink', 'study']) {
     const method = `k12.experience.${endpoint}`;
     const routePath = `/api/${method}`;
     ctx.effect(() => ctx.connection.fetch.register({ path: routePath, methods: ['POST'], requestBody: 'buffered',
@@ -598,10 +611,12 @@ export async function apply(ctx, config = {}) {
   if (typeof workspaceRoot !== 'string' || !path.isAbsolute(workspaceRoot)) fail('workspace');
   const { credentialKey } = await import('@deepseek-ai/dsh-credentials');
   const domain = await openExperienceStore(ctx.storageDomain);
+  const onlineSpeech = createOnlineSpeech();
+  ctx.effect(() => () => onlineSpeech.dispose());
   ctx.effect(() => () => domain.close());
   const service = createExperienceService({ bindings: domain.table('bindings'), requests: domain.table('requests'), credentials: ctx.credentials, credentialKey,
     workspaceRegistry: ctx.workspaceRegistry, sessionController: ctx.sessionController, engine: ctx.k12Engine,
-    workspaceRoot,
+    workspaceRoot, synthesizeSpeech: onlineSpeech.synthesize,
     sessionActivity: sessionId => ctx.waterfall('workspace/session-activity', { sessionId }, () => Promise.resolve([])) });
   ctx.provide('k12Experience', service);
   registerExperienceRoutes(ctx, service);

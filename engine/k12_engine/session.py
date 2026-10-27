@@ -176,6 +176,7 @@ def turn_begin(args: dict) -> dict:
     if state["turns_since_profile"] >= COMPACT_AFTER_TURNS:
         notes.append("[学情] 已经多轮没有更新学情档案；有可确认的新观察时引用账本 evidenceRefs，或保存偏好和一句学习小结；作答与改判仍只写 study_record。")
     ws.save(state)
+    notes.append('[语音规则]\n' + (route.PRINCIPLES.parent / 'speech.md').read_text(encoding='utf-8').strip())
     return {"notes": notes, "flags": state["flags"], 'learnerContext': learner_context}
 
 

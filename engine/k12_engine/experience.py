@@ -9,7 +9,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULTS = {
     "themeId": "classic", "characterId": "none", "narrativeLevel": "light",
-    "voice": {"enabled": False, "mode": "browser", "rate": 1},
+    "voice": {"enabled": False, "mode": "browser", "rate": 1, "voiceURI": "", "autoRead": False},
     "reducedMotion": True, "largeText": False, "interests": [],
 }
 INTERESTS = ("building", "exploration")
@@ -50,6 +50,9 @@ def validate_preferences(value: dict) -> dict:
     if not isinstance(voice, dict) or set(voice) - set(DEFAULTS["voice"]):
         raise ExperienceError("voice 含有未支持的字段")
     voice = {**DEFAULTS["voice"], **voice}
+    if (not isinstance(voice["voiceURI"], str) or len(voice["voiceURI"]) > 512
+            or any(ord(char) < 32 for char in voice["voiceURI"]) or type(voice["autoRead"]) is not bool):
+        raise ExperienceError("voice 需要有效音色标识及自动朗读开关")
     rate = voice["rate"]
     if (type(voice["enabled"]) is not bool or voice["mode"] != "browser"
             or type(rate) not in (int, float) or not math.isfinite(rate) or not 0.5 <= rate <= 2):

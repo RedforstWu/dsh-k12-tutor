@@ -1,6 +1,6 @@
 export const defaultPreferences = () => ({
   themeId: 'classic', characterId: 'none', narrativeLevel: 'light',
-  voice: { enabled: false, mode: 'browser', rate: 1 },
+  voice: { enabled: false, mode: 'browser', rate: 1, voiceURI: '', autoRead: false },
   reducedMotion: true, largeText: false, interests: [],
 });
 

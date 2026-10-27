@@ -42,13 +42,15 @@ disable-model-invocation: true
 
 ## 选择动作与媒介
 
-场景说明目标，method 说明怎样帮助。依据学生需要和反馈选择，不要求学生说出方法名。“让我讲给你听”可考虑自我解释，“换个说法”要结合卡点选方法。明确要求费曼法也先看是否已有材料可讲，不能把方法名称当作有效性的保证。
+场景定目标，method 定帮助方式，按需要和反馈选，不要求报方法名。“让我讲给你听”可选自我解释；“换个说法”按卡点选。费曼法需可讲材料，名称不保证有效。
 
-method 可省略，使用合适的通用动作；emotion、boundary 常不需要方法。选中的场景、方法及原则路径由 route_task 按需返回，不重读整套资料。
+method 可省略；emotion、boundary 常不需要。route_task 返回场景、方法及原则路径，不重读整套资料。
 
-判断是否需要互动；对话或白板足够就不新建。GenUI 可用时，观察、探索、变式优先在正文用 `dsh-ui` 围栏，不调用其工具；操作不算正式作答。需引擎校验的数学演示或模板读 [活动目录](references/activities.md)，用 make_activity（写 purpose）和 present。两者均守原题权限：withhold 不呈现原题答案、完整过程或判题键；作业原题只做变式。
+对话或白板足够就不建互动。GenUI 可用时，观察、探索、变式优先在正文用 `dsh-ui` 围栏，不调用其工具；操作不算正式作答。需引擎校验的数学演示或模板读 [活动目录](references/activities.md)，用 make_activity（写 purpose）和 present。均守原题权限：withhold 不呈现原题答案、完整过程或判题键；作业原题只做变式。
 
-边讲边画先读 [白板](references/whiteboard.md)。换方法可以继续同一块板；先 read 再描述已展示内容，不把 pending 说成已展示，不声称学生听完。受限题只允许现有检查准入的文字提示，不以改图形或文字绕过。
+边讲边画先读 [白板](references/whiteboard.md)。换方法可沿用；先 read 再描述展示内容，不把 pending 说成已展示或声称学生听完。受限题只用检查准入的文字提示，不改图文绕过。
+
+能自然朗读就省略 speech；需改写时按 [朗读选择](references/speech.md) 加旁白，保留重点和下一步。无围栏读正文，空块仅限明确要求本次静音；独立评估只发原样 deliveryText。
 
 ## 按学段表达
 

@@ -1,5 +1,8 @@
 {
   "none": {"name": "不显示角色", "states": {}},
   "mira": {"name": "米拉", "description": "AI 学习导师，原创几何形象", "states": {"listening": "mira-listening.svg", "thinking": "mira-thinking.svg", "encouraging": "mira-encouraging.svg"}},
-  "orbit": {"name": "小轨", "description": "AI 学习导师，原创几何形象", "states": {"listening": "orbit-listening.svg", "thinking": "orbit-thinking.svg", "encouraging": "orbit-encouraging.svg"}}
+  "orbit": {"name": "小轨", "description": "AI 学习导师，原创几何形象", "states": {"listening": "orbit-listening.svg", "thinking": "orbit-thinking.svg", "encouraging": "orbit-encouraging.svg"}},
+  "builder": {"name": "方块建造导师", "description": "原创方块风格 AI 学习导师", "states": {"listening": "builder-listening.svg"}},
+  "explorer": {"name": "星际探索导师", "description": "原创太空风格 AI 学习导师", "states": {"listening": "explorer-listening.svg"}},
+  "scholar": {"name": "课堂学者导师", "description": "原创课堂风格 AI 学习导师", "states": {"listening": "scholar-listening.svg"}}
 }

@@ -1,13 +1,17 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { defaultPreferences, navigateStudent, requestGate } from './client-state.mjs';
+import { findSpeechVoice } from './speech.mjs';
 import { Practice } from './Practice.jsx';
 import { withStudySkin } from '../../k12-whiteboard/src/study-skin.mjs';
+import characterRegistry from '../../../characters/registry.json';
 
 const themes = [['classic', '经典课堂'], ['voxel-builder', '方块建造'], ['space-explorer', '星际探索']];
-const characters = [['none', '不使用角色'], ['mira', '米拉导师'], ['orbit', '轨道助手']];
+const characters = Object.entries(characterRegistry).map(([id, character]) => [id, character.name]);
 const blank = () => ({ bindings: [], current: null, preferences: defaultPreferences(), workspaces: [] });
 
-export function Experience({ sessionId, rpc, navigation, studySkin }) {
+export function Experience({ sessionId, rpc, navigation, studySkin, speech, palette }) {
+  const colors = useSyncExternalStore(palette.subscribe, palette.getSnapshot);
+  const audio = useSyncExternalStore(speech.subscribe, speech.getSnapshot);
   const [open, setOpen] = useState(false);
   const [data, setData] = useState(blank);
   const [pending, setPending] = useState('');
@@ -18,13 +22,20 @@ export function Experience({ sessionId, rpc, navigation, studySkin }) {
   const token = useRef(null);
   const gate = useRef(requestGate());
   const dialog = useRef(null);
+  const previewOwner = `preview:${sessionId}`;
+  const previewing = audio.kind === 'speaking' && audio.owner === previewOwner;
   const stop = () => {
-    window.speechSynthesis?.cancel();
+    speech.stop();
     window.dispatchEvent(new CustomEvent('k12-experience:before-switch', { detail: { sessionId } }));
   };
   const load = async isCurrent => {
     const value = await rpc('list', sessionId ? { sessionId } : {});
-    if (isCurrent()) setData({ ...blank(), ...value, preferences: value.preferences || defaultPreferences() });
+    if (isCurrent()) {
+      const preferences = { ...defaultPreferences(), ...value.preferences,
+        voice: { ...defaultPreferences().voice, ...value.preferences?.voice } };
+      setData({ ...blank(), ...value, preferences });
+      if (sessionId) speech.setPreferences(sessionId, preferences);
+    }
   };
   const run = async (key, work) => {
     const isCurrent = gate.current.begin();
@@ -37,7 +48,7 @@ export function Experience({ sessionId, rpc, navigation, studySkin }) {
     setOpen(false); setData(blank()); setVerification(null); setResult(null); setPending(''); setError('');
     if (token.current) token.current.value = '';
     void run('load', load);
-    return () => { gate.current.invalidate(); window.speechSynthesis?.cancel(); };
+    return () => { gate.current.invalidate(); speech.stop(`preview:${sessionId}`); };
   }, [sessionId]);
   useEffect(() => {
     if (open) dialog.current?.showModal();
@@ -46,12 +57,12 @@ export function Experience({ sessionId, rpc, navigation, studySkin }) {
   const close = () => {
     gate.current.invalidate(); setPending(''); setVerification(null); setResult(null);
     if (token.current) token.current.value = '';
-    setOpen(false); window.speechSynthesis?.cancel();
+    setOpen(false); speech.stop(`preview:${sessionId}`);
   };
   const prefs = data.preferences;
   const save = preferences => run('preferences', async isCurrent => {
     await rpc('preferences', { sessionId, preferences });
-    if (isCurrent()) setData(old => ({ ...old, preferences }));
+    if (isCurrent()) { setData(old => ({ ...old, preferences })); speech.setPreferences(sessionId, preferences); }
   });
   const verify = event => {
     event.preventDefault();
@@ -87,16 +98,16 @@ export function Experience({ sessionId, rpc, navigation, studySkin }) {
     setResult(prompts[action]);
   };
   const speak = () => {
-    window.speechSynthesis?.cancel();
-    if (!prefs.voice.enabled || !window.speechSynthesis) return;
-    const utterance = new SpeechSynthesisUtterance('你好，我是 AI 学习导师。你可以提出问题，解释一个概念，或尝试资源任务。');
-    utterance.lang = 'zh-CN'; utterance.rate = prefs.voice.rate;
-    window.speechSynthesis.speak(utterance);
+    speech.arm();
+    void speech.speak({ sessionId, owner: `preview:${sessionId}`, kind: 'preview',
+      text: '你好，我是 AI 学习导师。你可以提出问题，解释一个概念，或尝试资源任务。' });
   };
+  const selectedVoice = findSpeechVoice(audio.voices, prefs.voice.voiceURI);
+  const availableVoice = Boolean(selectedVoice);
   return <>
-    <button className="k12-experience-trigger" title="学习空间与学生切换" onClick={() => { setOpen(true); void run('load', load); }}>
+    <button style={colors} className="k12-experience-trigger" title="学习空间与学生切换" onClick={() => { setOpen(true); void run('load', load); }}>
       {data.current?.studentName || '学习空间'}</button>
-    <dialog ref={dialog} onCancel={event => { event.preventDefault(); close(); }} className={`k12-experience k12-${prefs.themeId}${prefs.largeText ? ' k12-large' : ''}${prefs.reducedMotion ? ' k12-still' : ''}`} aria-label="家庭学习空间">
+    <dialog style={colors} ref={dialog} onCancel={event => { event.preventDefault(); close(); }} className={`k12-experience k12-${prefs.themeId}${prefs.largeText ? ' k12-large' : ''}${prefs.reducedMotion ? ' k12-still' : ''}`} aria-label="家庭学习空间">
       <div className="k12-experience-heading"><h2>学习空间</h2><button onClick={close} aria-label="关闭学习空间">关闭</button></div>
       <p className="k12-trust">家庭信任模式 · 家长监督使用，未隔离家庭成员权限</p>
       <p aria-live="polite">{sessionId ? '当前学生：' : '请选择学生进入对应会话：'}<strong>{data.current?.studentName || '未选择'}</strong>{data.current?.grade ? ` · ${data.current.grade}` : ''}{data.current?.currentBookId ? ` · ${data.current.currentBookId}` : ''}</p>
@@ -141,11 +152,21 @@ export function Experience({ sessionId, rpc, navigation, studySkin }) {
           {['building', 'exploration'].map((id, index) => <label key={id}><input type="checkbox" checked={prefs.interests.includes(id)} onChange={e => save({ ...prefs, interests: e.target.checked ? [...prefs.interests, id] : prefs.interests.filter(x => x !== id) })} />{['建造', '探索'][index]}</label>)}
           <label><input type="checkbox" checked={prefs.largeText} onChange={e => save({ ...prefs, largeText: e.target.checked })} />大字</label>
           <label><input type="checkbox" checked={prefs.reducedMotion} onChange={e => save({ ...prefs, reducedMotion: e.target.checked })} />减少动画</label>
-          <label><input type="checkbox" checked={prefs.voice.enabled} onChange={e => { window.speechSynthesis?.cancel(); save({ ...prefs, voice: { ...prefs.voice, enabled: e.target.checked } }); }} />浏览器朗读（可选）</label>
+          <label><input type="checkbox" checked={prefs.voice.enabled} onChange={e => { speech.arm(); save({ ...prefs, voice: { ...prefs.voice, enabled: e.target.checked } }); }} />语音朗读（可选）</label>
+          <label>语音音色<select aria-label="语音音色" value={selectedVoice?.voiceURI || prefs.voice.voiceURI} onChange={e => { speech.arm(); save({ ...prefs, voice: { ...prefs.voice, voiceURI: e.target.value } }); }}>
+            <option value="">请选择音色</option>
+            {prefs.voice.voiceURI && !availableVoice && <option value={prefs.voice.voiceURI}>已选音色标识不可用，请重新选择</option>}
+            {audio.voices.map(voice => <option key={voice.voiceURI} value={voice.voiceURI}>{voice.name} · {voice.lang} · {voice.localService ? '本地' : '在线'}</option>)}
+          </select></label>
+          {selectedVoice?.onlineVoice && <p>所选音色由微软在线服务合成，需要联网。</p>}
+          {!audio.voices.length && <p role="status">当前设备尚无可用的中文或英文语音，请检查系统语音包后重新打开。</p>}
+          <label><input type="checkbox" checked={prefs.voice.autoRead} onChange={e => { speech.arm(); save({ ...prefs, voice: { ...prefs.voice, autoRead: e.target.checked } }); }} />自动朗读新回复（本次使用需先试听）</label>
           <label>语速<input type="range" min="0.5" max="2" step="0.1" value={prefs.voice.rate} onChange={e => save({ ...prefs, voice: { ...prefs.voice, rate: Number(e.target.value) } })} /></label>
         </fieldset></details>
-        {prefs.characterId !== 'none' && <img className="k12-character" src={`/api/k12-experience/assets/${prefs.characterId}.svg`} alt={`${prefs.characterId === 'mira' ? '米拉' : '轨道助手'}，AI 学习导师`} />}
-        <div className="k12-voice"><button disabled={!prefs.voice.enabled || !window.speechSynthesis} onClick={speak}>试听导师介绍</button><button onClick={() => window.speechSynthesis?.cancel()}>停止朗读</button></div>
+        {prefs.characterId !== 'none' && <img className="k12-character" src={`/api/k12-experience/assets/${characterRegistry[prefs.characterId].states.listening}`} alt={`${characterRegistry[prefs.characterId].name}，AI 学习导师`} />}
+        <div className="k12-voice"><button disabled={!prefs.voice.enabled || !availableVoice} aria-busy={previewing && audio.phase === 'starting'} onClick={() => previewing ? speech.stop(previewOwner) : speak()}>{previewing && audio.phase === 'starting' && <span className="k12-speech-loading" aria-hidden="true" />}{previewing ? (audio.phase === 'starting' ? '取消准备' : '停止试听') : '试听导师介绍'}</button><button onClick={() => speech.stop(previewOwner)}>停止朗读</button></div>
+        {audio.phase !== 'starting' && audio.notice && audio.sessionId === sessionId && <p role="status">{audio.notice}</p>}
+        {audio.errorOwner === previewOwner && audio.retryVoice && <button onClick={() => void speech.retryLocal(previewOwner)}>本次使用 {audio.retryVoice.name}（本地）重试</button>}
         {data.current && <details><summary>管理连接</summary><p>{data.current.siteOrigin}</p><p>移除本机绑定不会吊销站点令牌，请家长在站点设置中吊销授权。</p><button disabled={Boolean(pending)} onClick={() => run('unlink', async isCurrent => {
           stop(); await rpc('unlink', { bindingId: data.current.bindingId }); if (isCurrent()) await load(isCurrent);
         })}>解除当前学生连接</button></details>}

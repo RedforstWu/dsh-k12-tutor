@@ -252,6 +252,7 @@ def render(result: dict) -> str:
     if task['answer_policy'] != 'refuse':
         parts += ["", "学生需要操作、观察或比较时才选媒介；对话或现有白板能完成就继续。"
                   f"GenUI 可用且无需引擎校验时，可在正文用 dsh-ui 围栏；需要受控页面时 read {(PRINCIPLES.parent / 'activities.md').as_posix()}，make_activity 写明 purpose 后用 present 发送。"]
+        parts += ["", (PRINCIPLES.parent / 'speech.md').read_text(encoding='utf-8').strip()]
     if result["notes"]:
         parts += ["", "## 注意", *[f"- {n}" for n in result["notes"]]]
     return "\n".join(parts)

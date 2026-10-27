@@ -25,11 +25,15 @@ export async function apply(ctx, config) {
           { headers: { 'cache-control': 'no-store' } });
       } }));
   }
-  for (const character of ['mira', 'orbit']) {
+  const registry = JSON.parse(await readFile(new URL('../../../characters/registry.json', import.meta.url), 'utf8'));
+  const assets = new Map(Object.values(registry).flatMap(character => Object.values(character.states)).map(asset => [asset, asset]));
+  for (const character of ['mira', 'orbit']) assets.set(`${character}.svg`, registry[character].states.listening);
+  for (const [route, asset] of assets) {
+    if (!/^[a-z0-9-]+\.(svg|png)$/.test(asset)) throw new Error('Invalid character asset');
     ctx.effect(() => ctx.connection.fetch.register({
-      path: `/api/k12-experience/assets/${character}.svg`, methods: ['GET'], requestBody: 'buffered',
-      fetch: async () => new Response(await readFile(new URL(`../../../characters/${character}-listening.svg`, import.meta.url)),
-        { headers: { 'content-type': 'image/svg+xml', 'cache-control': 'private, max-age=3600' } }),
+      path: `/api/k12-experience/assets/${route}`, methods: ['GET'], requestBody: 'buffered',
+      fetch: async () => new Response(await readFile(new URL(`../../../characters/${asset}`, import.meta.url)),
+        { headers: { 'content-type': asset.endsWith('.png') ? 'image/png' : 'image/svg+xml', 'cache-control': 'private, max-age=3600' } }),
     }));
   }
 }
